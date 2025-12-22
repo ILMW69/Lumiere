@@ -721,10 +721,11 @@ with st.sidebar:
     st.markdown("### Documents")
     
     try:
-        from rag.qdrant_client import client
+        from rag.qdrant_client import get_client
         from config.settings import DOCUMENT_COLLECTION_NAME
         
         # Scroll all documents with their metadata
+        client = get_client()
         docs = client.scroll(
             collection_name=DOCUMENT_COLLECTION_NAME,
             limit=100,

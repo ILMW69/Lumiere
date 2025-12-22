@@ -1,4 +1,4 @@
-from rag.qdrant_client import client
+from rag.qdrant_client import get_client
 from rag.embeddings import embed_text
 from config.settings import DOCUMENT_COLLECTION_NAME
 from sentence_transformers import CrossEncoder
@@ -37,6 +37,7 @@ def retrieve(query: str, top_k: int = 5, use_reranker: bool = True, initial_k: i
     
     query_vector = embed_text(query)
 
+    client = get_client()
     results = client.query_points(
         collection_name=DOCUMENT_COLLECTION_NAME,
         query=query_vector,

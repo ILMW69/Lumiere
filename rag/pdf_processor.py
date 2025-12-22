@@ -18,7 +18,7 @@ except ImportError:
 
 from rag.chunking import chunk_text
 from rag.embeddings import embed_text
-from rag.qdrant_client import client
+from rag.qdrant_client import get_client
 from config.settings import DOCUMENT_COLLECTION_NAME
 
 
@@ -159,6 +159,7 @@ def process_and_store_pdf(
     
     # Store in Qdrant
     try:
+        client = get_client()
         client.upsert(
             collection_name=DOCUMENT_COLLECTION_NAME,
             points=points
@@ -194,6 +195,7 @@ def list_uploaded_documents(user_id: str = None, limit: int = 100) -> list[dict]
     """
     try:
         # Scroll through collection to get unique documents
+        client = get_client()
         scroll_result = client.scroll(
             collection_name=DOCUMENT_COLLECTION_NAME,
             limit=limit,
@@ -240,6 +242,8 @@ def delete_document(doc_id: str) -> dict:
         dict with deletion status
     """
     try:
+        client = get_client()
+        
         # First, scroll through the collection to find all points with matching doc_id
         points_to_delete = []
         
