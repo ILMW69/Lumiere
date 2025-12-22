@@ -332,32 +332,50 @@ with st.sidebar:
     
     st.divider()
     
-    # Quick Stats
-    st.markdown("### Statistics")
+    # Document Library
+    st.markdown("### Document Library")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        try:
-            from rag.qdrant_client import client
-            from config.settings import DOCUMENT_COLLECTION_NAME
-            collection_info = client.get_collection(DOCUMENT_COLLECTION_NAME)
-            doc_count = collection_info.points_count
-        except:
-            doc_count = 0
-        st.metric("Documents", doc_count, delta=None)
-    
-    with col2:
-        st.metric("Queries", st.session_state.turn_count, delta=None)
-    
-    # Memory count
     try:
-        from memory.semantic_memory import get_memory_stats
-        stats = get_memory_stats()
-        memory_count = stats.get("total_memories", 0) if "error" not in stats else 0
-    except:
-        memory_count = 0
-    
-    st.metric("Memories", memory_count, delta=None)
+        from rag.qdrant_client import client
+        from config.settings import DOCUMENT_COLLECTION_NAME
+        
+        # Scroll all documents with their metadata
+        docs = client.scroll(
+            collection_name=DOCUMENT_COLLECTION_NAME,
+            limit=100,  # Adjust if you have more documents
+            with_payload=True,
+            with_vectors=False
+        )[0]
+        
+        if docs:
+            # Group documents by their titles or show unique documents
+            doc_info = {}
+            for doc in docs:
+                if doc.payload:
+                    title = doc.payload.get("title", "Untitled")
+                    source = doc.payload.get("source", "Unknown")
+                    chunk_index = doc.payload.get("chunk_index", 0)
+                    
+                    # Group by title, store chunk count
+                    if title not in doc_info:
+                        doc_info[title] = {
+                            "source": source,
+                            "chunks": 0
+                        }
+                    doc_info[title]["chunks"] += 1
+            
+            # Display documents in a clean list
+            for idx, (title, info) in enumerate(doc_info.items(), 1):
+                with st.container():
+                    st.markdown(f"**{idx}. {title}**")
+                    st.caption(f"{info['chunks']} chunks")
+                    if idx < len(doc_info):
+                        st.markdown("")  # Small spacing
+        else:
+            st.info("No documents stored yet")
+            
+    except Exception as e:
+        st.warning("Unable to load documents")
     
     st.divider()
     
