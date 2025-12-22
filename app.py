@@ -84,32 +84,60 @@ st.markdown("""
     
     /* Sidebar styling */
     section[data-testid="stSidebar"] {
-        background-color: #FAFAFA;
-        border-right: 1px solid #E5E5E7;
+        background-color: #E8E8E8 !important;
+        border-right: 1px solid #D1D1D6;
     }
     
-    /* Sidebar text visibility */
+    /* Sidebar text - all black */
     section[data-testid="stSidebar"] .stMarkdown,
+    section[data-testid="stSidebar"] .stMarkdown p,
+    section[data-testid="stSidebar"] .stMarkdown h1,
+    section[data-testid="stSidebar"] .stMarkdown h2,
+    section[data-testid="stSidebar"] .stMarkdown h3,
+    section[data-testid="stSidebar"] .stMarkdown strong,
     section[data-testid="stSidebar"] label,
     section[data-testid="stSidebar"] p,
     section[data-testid="stSidebar"] h1,
     section[data-testid="stSidebar"] h2,
-    section[data-testid="stSidebar"] h3 {
-        color: var(--apple-dark) !important;
+    section[data-testid="stSidebar"] h3,
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] div {
+        color: #000000 !important;
+    }
+    
+    /* Sidebar checkbox labels */
+    section[data-testid="stSidebar"] .stCheckbox label {
+        color: #000000 !important;
+    }
+    
+    /* Sidebar selectbox */
+    section[data-testid="stSidebar"] .stSelectbox label,
+    section[data-testid="stSidebar"] .stSelectbox div {
+        color: #000000 !important;
+    }
+    
+    /* Sidebar caption text */
+    section[data-testid="stSidebar"] .stCaption {
+        color: #000000 !important;
+    }
+    
+    /* Sidebar button text */
+    section[data-testid="stSidebar"] button {
+        color: #000000 !important;
     }
     
     /* Sidebar metrics */
     section[data-testid="stSidebar"] [data-testid="stMetric"] {
-        background: white;
-        color: var(--apple-dark);
+        background: transparent;
+        color: #000000 !important;
     }
     
     section[data-testid="stSidebar"] [data-testid="stMetricLabel"] {
-        color: var(--apple-gray) !important;
+        color: #000000 !important;
     }
     
     section[data-testid="stSidebar"] [data-testid="stMetricValue"] {
-        color: var(--apple-dark) !important;
+        color: #000000 !important;
     }
     
     /* Button styling */
