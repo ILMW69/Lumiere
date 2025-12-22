@@ -348,40 +348,57 @@ with st.sidebar:
         )[0]
         
         if docs:
-            # Group documents by their source (which contains the title)
+            # Group documents by their unique identifiers
             doc_info = {}
             for doc in docs:
                 if doc.payload:
-                    # Try to get title from different fields
-                    source = doc.payload.get("source", "Unknown")
+                    # Priority 1: Check for uploaded documents (PDFs, CSVs)
+                    filename = doc.payload.get("filename")
+                    doc_type = doc.payload.get("document_type")
                     
-                    # Extract clean title from source (remove " (Sample Document)" suffix)
-                    if " (Sample Document)" in source:
-                        title = source.replace(" (Sample Document)", "")
-                    elif source != "Unknown":
-                        title = source
+                    if filename:
+                        # This is an uploaded document
+                        doc_key = filename
+                        if doc_key not in doc_info:
+                            doc_info[doc_key] = {
+                                "type": doc_type or "document",
+                                "chunks": 0
+                            }
+                        doc_info[doc_key]["chunks"] += 1
                     else:
-                        title = doc.payload.get("title", "Untitled")
-                    
-                    # Group by title, store chunk count
-                    if title not in doc_info:
-                        doc_info[title] = {
-                            "chunks": 0
-                        }
-                    doc_info[title]["chunks"] += 1
+                        # Priority 2: Check for sample documents
+                        source = doc.payload.get("source", "")
+                        if source:
+                            # Extract clean title from source
+                            if " (Sample Document)" in source:
+                                title = source.replace(" (Sample Document)", "")
+                            else:
+                                title = source
+                            
+                            doc_key = title
+                            if doc_key not in doc_info:
+                                doc_info[doc_key] = {
+                                    "type": "sample",
+                                    "chunks": 0
+                                }
+                            doc_info[doc_key]["chunks"] += 1
             
             # Display documents in a clean list
-            for idx, (title, info) in enumerate(doc_info.items(), 1):
-                with st.container():
-                    st.markdown(f"**{idx}. {title}**")
-                    st.caption(f"{info['chunks']} chunks")
-                    if idx < len(doc_info):
-                        st.markdown("")  # Small spacing
+            if doc_info:
+                for idx, (title, info) in enumerate(doc_info.items(), 1):
+                    with st.container():
+                        st.markdown(f"**{idx}. {title}**")
+                        type_label = f"{info['type'].upper()}" if info['type'] != 'sample' else "Sample"
+                        st.caption(f"{type_label} • {info['chunks']} chunks")
+                        if idx < len(doc_info):
+                            st.markdown("")  # Small spacing
+            else:
+                st.info("No documents stored yet")
         else:
             st.info("No documents stored yet")
             
     except Exception as e:
-        st.warning(f"Unable to load documents: {str(e)}")
+        st.warning(f"Unable to load documents")
     
     st.divider()
     
