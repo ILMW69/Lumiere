@@ -1,5 +1,7 @@
 # Core LLM Framework
 langchain>=0.1.0
+langchain-openai>=0.0.5
+langchain-core>=0.1.0
 langgraph>=0.0.40
 openai>=1.10.0
 
