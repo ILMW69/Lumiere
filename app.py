@@ -20,6 +20,36 @@ from langfuse import observe
 st.set_page_config(page_title="Lumiere", layout="wide")
 
 # ---------------------------
+# Initialize Sample Data (First Run)
+# ---------------------------
+@st.cache_resource
+def initialize_app():
+    """Initialize app resources on first run."""
+    try:
+        from rag.qdrant_client import client
+        from rag.collections import ensure_collection_exists
+        from config.settings import DOCUMENT_COLLECTION_NAME
+        
+        # Ensure collections exist
+        ensure_collection_exists(DOCUMENT_COLLECTION_NAME)
+        
+        # Check if we need sample data
+        collection_info = client.get_collection(DOCUMENT_COLLECTION_NAME)
+        if collection_info.points_count == 0:
+            print("📚 No documents found. Initializing sample data...")
+            from scripts.init_sample_data import initialize_sample_data
+            initialize_sample_data()
+            return "Sample data initialized"
+        else:
+            return f"Ready ({collection_info.points_count} documents)"
+    except Exception as e:
+        print(f"⚠️ Initialization warning: {e}")
+        return "Ready"
+
+# Initialize on first load
+init_status = initialize_app()
+
+# ---------------------------
 # Helper Functions
 # ---------------------------
 def render_chart(viz_config):
