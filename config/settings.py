@@ -3,14 +3,25 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+def get_env(key: str, default=None):
+    """Get environment variable from .env or Streamlit secrets."""
+    value = os.getenv(key, default)
+    if value is None:
+        try:
+            import streamlit as st
+            value = st.secrets.get(key, default)
+        except (ImportError, FileNotFoundError):
+            pass
+    return value
+
 #OpenAI
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = get_env("OPENAI_API_KEY")
 LLM_MODEL = "gpt-4o-mini"
 EMBEDDING_MODEL = "text-embedding-3-small"
 
 # Qdrant
-QDRANT_URL = os.getenv("QDRANT_URL")
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+QDRANT_URL = get_env("QDRANT_URL")
+QDRANT_API_KEY = get_env("QDRANT_API_KEY")
 DOCUMENT_COLLECTION_NAME = "documents"
 MEMORY_COLLECTION_NAME = "memories"
 
@@ -19,6 +30,6 @@ CHUNK_SIZE = 500
 CHUNK_OVERLAP = 100
 
 # Langfuse
-LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY")
-LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY")
-LANGFUSE_BASE_URL = os.getenv("LANGFUSE_BASE_URL")
+LANGFUSE_SECRET_KEY = get_env("LANGFUSE_SECRET_KEY")
+LANGFUSE_PUBLIC_KEY = get_env("LANGFUSE_PUBLIC_KEY")
+LANGFUSE_BASE_URL = get_env("LANGFUSE_BASE_URL")
