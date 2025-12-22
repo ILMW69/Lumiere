@@ -322,43 +322,47 @@ if "lumiere_mode" not in st.session_state:
     st.session_state.lumiere_mode = "all_in"  # Default mode
 
 # ---------------------------
-# Clean Sidebar
+# Settings Panel (collapsed by default)
+# ---------------------------
+with st.expander("⚙️ Settings", expanded=False):
+    col1, col2, col3 = st.columns([2, 2, 1])
+    
+    with col1:
+        # Mode selector
+        mode_options = {
+            "all_in": "All Features",
+            "chat_rag": "Chat + Documents",
+            "data_analyst": "Analytics"
+        }
+        
+        selected_mode = st.selectbox(
+            "Mode",
+            options=list(mode_options.keys()),
+            format_func=lambda x: mode_options[x],
+            index=list(mode_options.keys()).index(st.session_state.lumiere_mode)
+        )
+        
+        if selected_mode != st.session_state.lumiere_mode:
+            st.session_state.lumiere_mode = selected_mode
+            st.rerun()
+    
+    with col2:
+        # Workflow toggle
+        show_streaming = st.checkbox("Show Workflow", value=True)
+    
+    with col3:
+        # Clear button
+        if st.button("Clear Session", use_container_width=True, type="secondary"):
+            from memory.session_memory import clear_session_memory
+            clear_session_memory(st.session_state.session_id)
+            st.session_state.messages = []
+            st.session_state.turn_count = 0
+            st.rerun()
+
+# ---------------------------
+# Clean Sidebar (Documents & Tables only)
 # ---------------------------
 with st.sidebar:
-    # Settings Section
-    st.markdown("### Settings")
-    
-    # Mode selector (compact)
-    mode_options = {
-        "all_in": "All Features",
-        "chat_rag": "Chat + Documents",
-        "data_analyst": "Analytics"
-    }
-    
-    selected_mode = st.selectbox(
-        "Mode",
-        options=list(mode_options.keys()),
-        format_func=lambda x: mode_options[x],
-        index=list(mode_options.keys()).index(st.session_state.lumiere_mode),
-        label_visibility="collapsed"
-    )
-    
-    if selected_mode != st.session_state.lumiere_mode:
-        st.session_state.lumiere_mode = selected_mode
-        st.rerun()
-    
-    # Workflow toggle
-    show_streaming = st.checkbox("Show Workflow", value=True)
-    
-    # Clear button
-    if st.button("Clear Session", use_container_width=True, type="secondary"):
-        from memory.session_memory import clear_session_memory
-        clear_session_memory(st.session_state.session_id)
-        st.session_state.messages = []
-        st.session_state.turn_count = 0
-        st.rerun()
-    
-    st.divider()
     
     # Document Library (PDFs only)
     st.markdown("### Documents")
