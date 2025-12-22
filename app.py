@@ -324,40 +324,101 @@ if "lumiere_mode" not in st.session_state:
 # ---------------------------
 # Settings Panel (collapsed by default)
 # ---------------------------
-with st.expander("⚙️ Settings", expanded=False):
-    col1, col2, col3 = st.columns([2, 2, 1])
-    
-    with col1:
-        # Mode selector
-        mode_options = {
-            "all_in": "All Features",
-            "chat_rag": "Chat + Documents",
-            "data_analyst": "Analytics"
-        }
+col_settings, col_advanced = st.columns([4, 1])
+
+with col_settings:
+    with st.expander("⚙️ Settings", expanded=False):
+        col1, col2, col3 = st.columns([2, 2, 1])
         
-        selected_mode = st.selectbox(
-            "Mode",
-            options=list(mode_options.keys()),
-            format_func=lambda x: mode_options[x],
-            index=list(mode_options.keys()).index(st.session_state.lumiere_mode)
-        )
+        with col1:
+            # Mode selector
+            mode_options = {
+                "all_in": "All Features",
+                "chat_rag": "Chat + Documents",
+                "data_analyst": "Analytics"
+            }
+            
+            selected_mode = st.selectbox(
+                "Mode",
+                options=list(mode_options.keys()),
+                format_func=lambda x: mode_options[x],
+                index=list(mode_options.keys()).index(st.session_state.lumiere_mode)
+            )
+            
+            if selected_mode != st.session_state.lumiere_mode:
+                st.session_state.lumiere_mode = selected_mode
+                st.rerun()
         
-        if selected_mode != st.session_state.lumiere_mode:
-            st.session_state.lumiere_mode = selected_mode
-            st.rerun()
-    
-    with col2:
-        # Workflow toggle
-        show_streaming = st.checkbox("Show Workflow", value=True)
-    
-    with col3:
-        # Clear button
-        if st.button("Clear Session", use_container_width=True, type="secondary"):
-            from memory.session_memory import clear_session_memory
-            clear_session_memory(st.session_state.session_id)
-            st.session_state.messages = []
-            st.session_state.turn_count = 0
-            st.rerun()
+        with col2:
+            # Workflow toggle
+            show_streaming = st.checkbox("Show Workflow", value=True)
+        
+        with col3:
+            # Clear button
+            if st.button("Clear Session", use_container_width=True, type="secondary"):
+                from memory.session_memory import clear_session_memory
+                clear_session_memory(st.session_state.session_id)
+                st.session_state.messages = []
+                st.session_state.turn_count = 0
+                st.rerun()
+
+with col_advanced:
+    with st.expander("🔧 Advanced", expanded=False):
+        # Memory search
+        st.caption("**Search Memories**")
+        try:
+            from memory.semantic_memory import retrieve_memories
+            
+            search_query = st.text_input("Search:", placeholder="e.g., RAG systems", key="memory_search", label_visibility="collapsed")
+            if search_query:
+                memories = retrieve_memories(
+                    query=search_query,
+                    top_k=3,
+                    user_id=st.session_state.user_id,
+                    min_score=0.6
+                )
+                
+                if memories:
+                    for i, mem in enumerate(memories, 1):
+                        st.caption(f"**{i}.** {mem['content'][:100]}...")
+                        st.caption(f"Score: {mem['score']:.2f} | {mem['timestamp'][:10]}")
+                        if i < len(memories):
+                            st.markdown("---")
+                else:
+                    st.info("No memories found")
+        except Exception as e:
+            st.warning("Memory search unavailable")
+        
+        st.markdown("---")
+        
+        # Quick upload
+        st.caption("**Quick Upload**")
+        upload_type = st.radio("Type:", ["PDF", "CSV"], horizontal=True, label_visibility="collapsed")
+        
+        if upload_type == "PDF":
+            quick_file = st.file_uploader("Upload", type=['pdf'], key="quick_pdf", label_visibility="collapsed")
+            if quick_file and st.button("Store", key="store_pdf"):
+                from rag.pdf_processor import process_and_store_pdf
+                with st.spinner("Processing..."):
+                    result = process_and_store_pdf(quick_file, quick_file.name, st.session_state.user_id)
+                    if result["success"]:
+                        st.success(f"✓ {result['chunks_stored']} chunks")
+                        st.rerun()
+                    else:
+                        st.error(result["error"])
+        else:
+            quick_file = st.file_uploader("Upload", type=['csv'], key="quick_csv", label_visibility="collapsed")
+            if quick_file and st.button("Store", key="store_csv"):
+                from database.csv_processor import process_and_store_csv
+                with st.spinner("Processing..."):
+                    result = process_and_store_csv(quick_file, quick_file.name, user_id=st.session_state.user_id)
+                    if result["success"]:
+                        st.success(f"✓ {result['rows']} rows")
+                        st.rerun()
+                    else:
+                        st.error(result["error"])
+        
+        st.caption("💡 Visit Documents page for more options")
 
 # ---------------------------
 # Clean Sidebar (Documents & Tables only)
@@ -435,64 +496,6 @@ with st.sidebar:
             
     except Exception as e:
         st.caption(f"Unable to load: {str(e)}")
-    
-    st.divider()
-    
-    # Advanced Section (collapsed by default)
-    with st.expander("Advanced", expanded=False):
-        # Memory search
-        st.caption("**Search Memories**")
-        try:
-            from memory.semantic_memory import retrieve_memories
-            
-            search_query = st.text_input("Search:", placeholder="e.g., RAG systems", key="memory_search", label_visibility="collapsed")
-            if search_query:
-                memories = retrieve_memories(
-                    query=search_query,
-                    top_k=3,
-                    user_id=st.session_state.user_id,
-                    min_score=0.6
-                )
-                
-                if memories:
-                    for i, mem in enumerate(memories, 1):
-                        st.caption(f"**{i}.** {mem['content'][:100]}...")
-                        st.caption(f"Score: {mem['score']:.2f} | {mem['timestamp'][:10]}")
-                        if i < len(memories):
-                            st.markdown("---")
-                else:
-                    st.info("No memories found")
-        except Exception as e:
-            st.warning("Memory search unavailable")
-        
-        st.markdown("---")
-        
-        # Quick upload
-        st.caption("**Quick Upload**")
-        upload_type = st.radio("Type:", ["PDF", "CSV"], horizontal=True, label_visibility="collapsed")
-        
-        if upload_type == "PDF":
-            quick_file = st.file_uploader("Upload", type=['pdf'], key="quick_pdf", label_visibility="collapsed")
-            if quick_file and st.button("Store", key="store_pdf"):
-                from rag.pdf_processor import process_and_store_pdf
-                with st.spinner("Processing..."):
-                    result = process_and_store_pdf(quick_file, quick_file.name, st.session_state.user_id)
-                    if result["success"]:
-                        st.success(f"✓ {result['chunks_stored']} chunks")
-                    else:
-                        st.error(result["error"])
-        else:
-            quick_file = st.file_uploader("Upload", type=['csv'], key="quick_csv", label_visibility="collapsed")
-            if quick_file and st.button("Store", key="store_csv"):
-                from database.csv_processor import process_and_store_csv
-                with st.spinner("Processing..."):
-                    result = process_and_store_csv(quick_file, quick_file.name, user_id=st.session_state.user_id)
-                    if result["success"]:
-                        st.success(f"✓ {result['rows']} rows")
-                    else:
-                        st.error(result["error"])
-        
-        st.caption("💡 Visit Documents page for more options")
 
 # ---------------------------
 # Display chat history
