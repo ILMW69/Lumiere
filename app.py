@@ -2,10 +2,15 @@ import streamlit as st
 import os
 
 # Load Streamlit secrets into environment variables BEFORE any other imports
-if hasattr(st, 'secrets'):
-    for key in ['OPENAI_API_KEY', 'QDRANT_URL', 'QDRANT_API_KEY', 'LANGFUSE_SECRET_KEY', 'LANGFUSE_PUBLIC_KEY', 'LANGFUSE_BASE_URL']:
-        if key in st.secrets:
-            os.environ[key] = st.secrets[key]
+try:
+    if hasattr(st, 'secrets'):
+        secrets_dict = dict(st.secrets)
+        for key in ['OPENAI_API_KEY', 'QDRANT_URL', 'QDRANT_API_KEY', 'LANGFUSE_SECRET_KEY', 'LANGFUSE_PUBLIC_KEY', 'LANGFUSE_BASE_URL']:
+            if key in secrets_dict:
+                os.environ[key] = secrets_dict[key]
+except Exception:
+    # Secrets not configured, will use setup page
+    pass
 
 import uuid
 import time
@@ -55,6 +60,25 @@ def show_setup_page():
         border-radius: 12px;
         padding: 1.5rem;
         margin-bottom: 2rem;
+        color: #1d1d1f;
+    }
+    .info-box h3 {
+        color: #1d1d1f;
+        margin-top: 0;
+    }
+    .info-box ul {
+        color: #1d1d1f;
+    }
+    .info-box li {
+        color: #1d1d1f;
+        margin-bottom: 0.5rem;
+    }
+    .info-box a {
+        color: #007AFF;
+        text-decoration: none;
+    }
+    .info-box a:hover {
+        text-decoration: underline;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -173,7 +197,15 @@ def show_setup_page():
 # ---------------------------
 if not st.session_state.get("api_configured", False):
     # Check if running with secrets (admin/demo mode)
-    has_secrets = hasattr(st, 'secrets') and 'OPENAI_API_KEY' in st.secrets
+    has_secrets = False
+    try:
+        if hasattr(st, 'secrets'):
+            secrets_dict = dict(st.secrets)
+            has_secrets = 'OPENAI_API_KEY' in secrets_dict
+    except Exception:
+        # Secrets not available, will use setup page
+        pass
+    
     if not has_secrets:
         show_setup_page()
         st.stop()
