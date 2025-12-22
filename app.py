@@ -88,6 +88,30 @@ st.markdown("""
         border-right: 1px solid #E5E5E7;
     }
     
+    /* Sidebar text visibility */
+    section[data-testid="stSidebar"] .stMarkdown,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3 {
+        color: var(--apple-dark) !important;
+    }
+    
+    /* Sidebar metrics */
+    section[data-testid="stSidebar"] [data-testid="stMetric"] {
+        background: white;
+        color: var(--apple-dark);
+    }
+    
+    section[data-testid="stSidebar"] [data-testid="stMetricLabel"] {
+        color: var(--apple-gray) !important;
+    }
+    
+    section[data-testid="stSidebar"] [data-testid="stMetricValue"] {
+        color: var(--apple-dark) !important;
+    }
+    
     /* Button styling */
     .stButton > button {
         border-radius: 10px;
@@ -229,7 +253,7 @@ def render_chart(viz_config):
 # ---------------------------
 col1, col2 = st.columns([3, 1])
 with col1:
-    st.title("🌟 Lumiere")
+    st.title("Lumiere")
     st.markdown('<p class="subtitle">Intelligent Knowledge Assistant with RAG & Analytics</p>', unsafe_allow_html=True)
 
 with col2:
@@ -240,9 +264,9 @@ with col2:
 # Feature badges
 st.markdown("""
 <div style="margin: -1rem 0 1.5rem 0;">
-    <span class="feature-badge">📚 RAG-Powered</span>
-    <span class="feature-badge">📊 Data Analytics</span>
-    <span class="feature-badge">🧠 Semantic Memory</span>
+    <span class="feature-badge">RAG-Powered</span>
+    <span class="feature-badge">Data Analytics</span>
+    <span class="feature-badge">Semantic Memory</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -274,13 +298,13 @@ if "lumiere_mode" not in st.session_state:
 # ---------------------------
 with st.sidebar:
     # Settings Section
-    st.markdown("### ⚙️ Settings")
+    st.markdown("### Settings")
     
     # Mode selector (compact)
     mode_options = {
-        "all_in": "🌟 All Features",
-        "chat_rag": "💬 Chat + Docs",
-        "data_analyst": "📊 Analytics"
+        "all_in": "All Features",
+        "chat_rag": "Chat + Documents",
+        "data_analyst": "Analytics"
     }
     
     selected_mode = st.selectbox(
@@ -296,10 +320,10 @@ with st.sidebar:
         st.rerun()
     
     # Workflow toggle
-    show_streaming = st.checkbox("🔄 Show Workflow", value=True)
+    show_streaming = st.checkbox("Show Workflow", value=True)
     
     # Clear button
-    if st.button("🗑️ Clear Session", use_container_width=True, type="secondary"):
+    if st.button("Clear Session", use_container_width=True, type="secondary"):
         from memory.session_memory import clear_session_memory
         clear_session_memory(st.session_state.session_id)
         st.session_state.messages = []
@@ -309,7 +333,7 @@ with st.sidebar:
     st.divider()
     
     # Quick Stats
-    st.markdown("### 📊 Quick Stats")
+    st.markdown("### Statistics")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -338,7 +362,7 @@ with st.sidebar:
     st.divider()
     
     # Advanced Section (collapsed by default)
-    with st.expander("🧠 Advanced", expanded=False):
+    with st.expander("Advanced", expanded=False):
         # Memory search
         st.caption("**Search Memories**")
         try:
