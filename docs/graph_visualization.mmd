@@ -1,0 +1,77 @@
+---
+config:
+  flowchart:
+    curve: basis
+---
+graph TD;
+	%% Start Node
+	__start__([START]):::startNode
+	
+	%% Main Workflow Nodes
+	intent["🎯 Intent Classification<br/><small>Determine query type</small>"]:::intentNode
+	retrieve["📚 RAG Retrieval<br/><small>Semantic search in docs</small>"]:::ragNode
+	reason["🧠 RAG Reasoning<br/><small>Generate grounded answer</small>"]:::reasonNode
+	general_reason["💬 General Reasoning<br/><small>Direct LLM response</small>"]:::generalNode
+	sql_execute["🗄️ SQL Execution<br/><small>Query database</small>"]:::sqlNode
+	sql_reason["📊 SQL Reasoning<br/><small>Interpret results</small>"]:::sqlNode
+	visualize["📈 Visualization<br/><small>Generate chart config</small>"]:::vizNode
+	critic["⚖️ Critic Agent<br/><small>Quality validation</small>"]:::criticNode
+	memory_write["💾 Memory Write<br/><small>Store conversation + semantic memory</small>"]:::memoryNode
+	
+	%% External Components
+	qdrant[("🧠 Qdrant Vector DB<br/><small>• Semantic Memory (agent_memories)<br/>• Document Storage (documents)</small>")]:::qdrantNode
+	sqlite[("� SQLite<br/><small>Relational DB<br/>Data Source</small>")]:::sqliteNode
+	
+	%% End Node
+	__end__([END]):::endNode
+	
+	%% Main Flow
+	__start__ --> intent
+	
+	%% Intent Routing
+	intent -- "needs_rag=true" --> retrieve
+	intent -- "needs_sql=true" --> sql_execute
+	intent -- "no_rag, no_sql" --> general_reason
+	
+	%% RAG Path
+	retrieve -- "docs found" --> reason
+	retrieve -- "no docs" --> general_reason
+	reason --> critic
+	
+	%% SQL Path
+	sql_execute -- "success" --> sql_reason
+	sql_execute -- "failed" --> general_reason
+	sql_reason -- "data_analyst mode" --> visualize
+	sql_reason -- "other modes" --> critic
+	visualize --> critic
+	
+	%% General Path
+	general_reason --> critic
+	
+	%% Critic Decisions
+	critic -- "RETRY<br/>(retry_count < 1)" --> reason
+	critic -- "ACCEPT/REJECT<br/>(always)" --> memory_write
+	
+	%% Memory Storage
+	memory_write --> __end__
+	
+	%% External System Connections
+	intent -.-> |"retrieve<br/>memories"| qdrant
+	retrieve -.-> |"semantic<br/>search"| qdrant
+	sql_execute -.-> |"query<br/>execution"| sqlite
+	memory_write -.-> |"store<br/>conversation"| qdrant
+	
+	%% Styling
+	classDef startNode fill:#e8f5e9,stroke:#4caf50,stroke-width:3px,color:#1b5e20
+	classDef endNode fill:#ffebee,stroke:#f44336,stroke-width:3px,color:#b71c1c
+	classDef intentNode fill:#e3f2fd,stroke:#2196f3,stroke-width:2px,color:#0d47a1
+	classDef ragNode fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#4a148c
+	classDef reasonNode fill:#fff3e0,stroke:#ff9800,stroke-width:2px,color:#e65100
+	classDef generalNode fill:#fce4ec,stroke:#e91e63,stroke-width:2px,color:#880e4f
+	classDef sqlNode fill:#e0f2f1,stroke:#009688,stroke-width:2px,color:#004d40
+	classDef vizNode fill:#f1f8e9,stroke:#8bc34a,stroke-width:2px,color:#33691e
+	classDef criticNode fill:#fff9c4,stroke:#ffc107,stroke-width:3px,color:#f57f17
+	classDef memoryNode fill:#ede7f6,stroke:#673ab7,stroke-width:3px,color:#311b92
+	classDef qdrantNode fill:#e1bee7,stroke:#9c27b0,stroke-width:3px,color:#4a148c
+	classDef sqliteNode fill:#eceff1,stroke:#607d8b,stroke-width:2px,color:#263238
+
