@@ -312,7 +312,26 @@ def render_chart(viz_config):
             st.plotly_chart(fig, use_container_width=True, config=chart_config)
         
         with col_stats:
-            # Key statistics sidebar
+            # Key statistics sidebar with custom styling
+            st.markdown("""
+                <style>
+                [data-testid="stMetric"] {
+                    background-color: #f5f5f7;
+                    padding: 1rem;
+                    border-radius: 8px;
+                    margin-bottom: 0.5rem;
+                }
+                [data-testid="stMetricLabel"] {
+                    color: #1d1d1f !important;
+                    font-weight: 500;
+                }
+                [data-testid="stMetricValue"] {
+                    color: #1d1d1f !important;
+                    font-weight: 600;
+                }
+                </style>
+            """, unsafe_allow_html=True)
+            
             st.markdown("### Key Stats")
             
             # Calculate stats for numeric column (y_col)
