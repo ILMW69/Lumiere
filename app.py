@@ -25,6 +25,163 @@ st.set_page_config(
 )
 
 # ---------------------------
+# Setup Page for API Configuration
+# ---------------------------
+def show_setup_page():
+    """Display API configuration page for users to input their credentials."""
+    
+    st.markdown("""
+    <style>
+    .setup-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    .setup-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1d1d1f;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    .setup-subtitle {
+        font-size: 1.1rem;
+        color: #6e6e73;
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+    .info-box {
+        background: #f5f5f7;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="setup-container">', unsafe_allow_html=True)
+    st.markdown('<h1 class="setup-title">🌟 Welcome to Lumiere</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="setup-subtitle">Configure your API credentials to get started</p>', unsafe_allow_html=True)
+    
+    # Info box
+    st.markdown("""
+    <div class="info-box">
+        <h3>📝 What you'll need:</h3>
+        <ul>
+            <li><strong>OpenAI API Key</strong> - For LLM processing (<a href="https://platform.openai.com/api-keys" target="_blank">Get one here</a>)</li>
+            <li><strong>Qdrant Credentials</strong> - For vector storage (<a href="https://cloud.qdrant.io/" target="_blank">Free tier available</a>)</li>
+        </ul>
+        <p style="margin-top: 1rem; color: #6e6e73; font-size: 0.9rem;">
+            💡 Your credentials are stored only in your browser session and never saved to disk.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Input form
+    with st.form("api_config_form"):
+        st.markdown("### 🔑 OpenAI Configuration")
+        openai_key = st.text_input(
+            "OpenAI API Key",
+            type="password",
+            placeholder="sk-...",
+            help="Your OpenAI API key from platform.openai.com"
+        )
+        
+        st.markdown("### 🗄️ Qdrant Configuration")
+        qdrant_url = st.text_input(
+            "Qdrant URL",
+            placeholder="https://xyz-example.qdrant.io",
+            help="Your Qdrant cluster URL from cloud.qdrant.io"
+        )
+        
+        qdrant_key = st.text_input(
+            "Qdrant API Key",
+            type="password",
+            placeholder="Your Qdrant API key",
+            help="Your Qdrant API key from cloud.qdrant.io"
+        )
+        
+        st.markdown("### 🔍 Langfuse (Optional)")
+        col1, col2 = st.columns(2)
+        with col1:
+            langfuse_public = st.text_input(
+                "Langfuse Public Key",
+                type="password",
+                placeholder="pk-...",
+                help="Optional: For observability tracking"
+            )
+        with col2:
+            langfuse_secret = st.text_input(
+                "Langfuse Secret Key",
+                type="password",
+                placeholder="sk-...",
+                help="Optional: For observability tracking"
+            )
+        
+        langfuse_url = st.text_input(
+            "Langfuse URL",
+            value="https://cloud.langfuse.com",
+            help="Optional: Langfuse instance URL"
+        )
+        
+        submitted = st.form_submit_button("🚀 Connect & Start", use_container_width=True, type="primary")
+        
+        if submitted:
+            # Validate required fields
+            if not openai_key or not qdrant_url or not qdrant_key:
+                st.error("⚠️ Please fill in all required fields (OpenAI and Qdrant credentials)")
+                return
+            
+            # Store in session state
+            st.session_state.user_openai_key = openai_key
+            st.session_state.user_qdrant_url = qdrant_url
+            st.session_state.user_qdrant_key = qdrant_key
+            st.session_state.user_langfuse_public = langfuse_public
+            st.session_state.user_langfuse_secret = langfuse_secret
+            st.session_state.user_langfuse_url = langfuse_url
+            
+            # Set environment variables for this session
+            os.environ['OPENAI_API_KEY'] = openai_key
+            os.environ['QDRANT_URL'] = qdrant_url
+            os.environ['QDRANT_API_KEY'] = qdrant_key
+            
+            if langfuse_public and langfuse_secret:
+                os.environ['LANGFUSE_PUBLIC_KEY'] = langfuse_public
+                os.environ['LANGFUSE_SECRET_KEY'] = langfuse_secret
+                os.environ['LANGFUSE_BASE_URL'] = langfuse_url
+            
+            # Mark as configured
+            st.session_state.api_configured = True
+            
+            st.success("✅ Configuration successful! Loading application...")
+            time.sleep(1)
+            st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Footer
+    st.markdown("---")
+    st.markdown("""
+    <p style="text-align: center; color: #6e6e73; font-size: 0.9rem;">
+        🔒 Your API keys are secure and stored only in your browser session.<br>
+        They are never transmitted to any server except the official API endpoints.
+    </p>
+    """, unsafe_allow_html=True)
+
+# ---------------------------
+# Check if user has configured APIs
+# ---------------------------
+if not st.session_state.get("api_configured", False):
+    # Check if running with secrets (admin/demo mode)
+    has_secrets = hasattr(st, 'secrets') and 'OPENAI_API_KEY' in st.secrets
+    if not has_secrets:
+        show_setup_page()
+        st.stop()
+    else:
+        # Running with secrets, mark as configured
+        st.session_state.api_configured = True
+
+# ---------------------------
 # Apple-like Custom CSS
 # ---------------------------
 st.markdown("""
