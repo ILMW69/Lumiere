@@ -389,9 +389,8 @@ with st.sidebar:
     try:
         from database.sqlite_client import client as db_client
         
-        # Get all tables from SQLite
-        cursor = db_client.execute_query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-        tables = [row[0] for row in cursor.fetchall()]
+        # Get all tables from SQLite using the list_tables method
+        tables = db_client.list_tables()
         
         # Filter out system tables
         user_tables = [t for t in tables if not t.startswith('sqlite_')]
@@ -403,7 +402,7 @@ with st.sidebar:
             st.caption("No tables")
             
     except Exception as e:
-        st.caption("Unable to load")
+        st.caption(f"Unable to load: {str(e)}")
     
     st.divider()
     
