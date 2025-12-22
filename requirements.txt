@@ -19,6 +19,9 @@ langfuse>=2.0.0
 tiktoken>=0.5.0
 pandas>=2.0.0
 
+# Data Visualization
+plotly>=5.18.0
+
 # Document Processing
 PyPDF2>=3.0.0
 pycryptodome>=3.19.0
