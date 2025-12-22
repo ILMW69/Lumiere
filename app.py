@@ -17,7 +17,116 @@ from graph.rag_graph import build_graph
 from memory.session_memory import get_session_memory, append_session_memory
 from langfuse import observe
 
-st.set_page_config(page_title="Lumiere", layout="wide")
+st.set_page_config(
+    page_title="Lumiere",
+    layout="wide",
+    page_icon="🌟",
+    initial_sidebar_state="expanded"
+)
+
+# ---------------------------
+# Apple-like Custom CSS
+# ---------------------------
+st.markdown("""
+<style>
+    /* Apple-inspired color palette and typography */
+    :root {
+        --apple-blue: #007AFF;
+        --apple-green: #34C759;
+        --apple-gray: #86868B;
+        --apple-dark: #1D1D1F;
+        --apple-bg: #F5F5F7;
+    }
+    
+    /* Main container styling */
+    .main {
+        background-color: var(--apple-bg);
+    }
+    
+    /* Header styling */
+    h1 {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-weight: 600;
+        color: var(--apple-dark);
+        letter-spacing: -0.5px;
+    }
+    
+    /* Subtitle styling */
+    .subtitle {
+        color: var(--apple-gray);
+        font-size: 1.1rem;
+        font-weight: 400;
+        margin-top: -1rem;
+        margin-bottom: 2rem;
+    }
+    
+    /* Feature badges */
+    .feature-badge {
+        display: inline-block;
+        padding: 0.3rem 0.8rem;
+        margin: 0.2rem;
+        background: linear-gradient(135deg, var(--apple-blue) 0%, #0051D5 100%);
+        color: white;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+    }
+    
+    /* Cards with shadow */
+    .card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        margin: 1rem 0;
+    }
+    
+    /* Sidebar styling */
+    section[data-testid="stSidebar"] {
+        background-color: #FAFAFA;
+        border-right: 1px solid #E5E5E7;
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        border-radius: 10px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        border: none;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* Metrics styling */
+    [data-testid="stMetric"] {
+        background: white;
+        padding: 1rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+    
+    /* Clean expander */
+    .streamlit-expanderHeader {
+        background-color: white;
+        border-radius: 8px;
+        font-weight: 500;
+    }
+    
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    /* Chat input styling */
+    .stChatInput {
+        border-radius: 12px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # ---------------------------
 # Initialize Sample Data (First Run)
@@ -115,8 +224,29 @@ def render_chart(viz_config):
         # Fallback to table
         st.dataframe(df, use_container_width=True)
 
-st.title("✨ Lumiere")
-st.caption("Agentic RAG Knowledge Workspace")
+# ---------------------------
+# Modern Header
+# ---------------------------
+col1, col2 = st.columns([3, 1])
+with col1:
+    st.title("🌟 Lumiere")
+    st.markdown('<p class="subtitle">Intelligent Knowledge Assistant with RAG & Analytics</p>', unsafe_allow_html=True)
+
+with col2:
+    st.markdown("###")  # Spacing
+    if init_status:
+        st.caption(f"✓ {init_status}")
+
+# Feature badges
+st.markdown("""
+<div style="margin: -1rem 0 1.5rem 0;">
+    <span class="feature-badge">📚 RAG-Powered</span>
+    <span class="feature-badge">📊 Data Analytics</span>
+    <span class="feature-badge">🧠 Semantic Memory</span>
+</div>
+""", unsafe_allow_html=True)
+
+st.divider()
 
 # ---------------------------
 # Session initialization
@@ -140,146 +270,128 @@ if "lumiere_mode" not in st.session_state:
     st.session_state.lumiere_mode = "all_in"  # Default mode
 
 # ---------------------------
-# Sidebar: Session Info & Memory
+# Clean Sidebar
 # ---------------------------
 with st.sidebar:
-    st.header("Session Info")
-    st.text(f"Session ID: {st.session_state.session_id[:8]}...")
-    st.text(f"Turn: {st.session_state.turn_count}")
+    # Settings Section
+    st.markdown("### ⚙️ Settings")
     
-    st.divider()
-    
-    # Lumiere Mode Selection
-    st.subheader("🎯 Lumiere Mode")
-    
+    # Mode selector (compact)
     mode_options = {
-        "all_in": "🌟 All-in Mode",
-        "chat_rag": "💬 Chat & Documents",
-        "data_analyst": "📊 Data Analyst Mode"
+        "all_in": "🌟 All Features",
+        "chat_rag": "💬 Chat + Docs",
+        "data_analyst": "📊 Analytics"
     }
     
-    mode_descriptions = {
-        "all_in": "Full capabilities: Chat, Documents (RAG), and Data queries (SQL)",
-        "chat_rag": "General chat and document search only (no database queries)",
-        "data_analyst": "Data queries with automatic visualizations (charts, graphs, insights)"
-    }
-    
-    selected_mode = st.radio(
-        "Select Mode:",
+    selected_mode = st.selectbox(
+        "Mode",
         options=list(mode_options.keys()),
         format_func=lambda x: mode_options[x],
         index=list(mode_options.keys()).index(st.session_state.lumiere_mode),
-        help="Choose how Lumiere should respond to your queries"
+        label_visibility="collapsed"
     )
     
-    # Update mode if changed
     if selected_mode != st.session_state.lumiere_mode:
         st.session_state.lumiere_mode = selected_mode
         st.rerun()
     
-    # Show current mode description
-    st.caption(f"ℹ️ {mode_descriptions[st.session_state.lumiere_mode]}")
+    # Workflow toggle
+    show_streaming = st.checkbox("🔄 Show Workflow", value=True)
     
-    st.divider()
-    
-    # Streaming toggle
-    st.subheader("⚙️ Settings")
-    show_streaming = st.toggle("Show Workflow Streaming", value=True, help="Toggle to show/hide real-time workflow execution")
-    
-    if st.button("Clear Memory"):
+    # Clear button
+    if st.button("🗑️ Clear Session", use_container_width=True, type="secondary"):
         from memory.session_memory import clear_session_memory
         clear_session_memory(st.session_state.session_id)
         st.session_state.messages = []
         st.session_state.turn_count = 0
-        st.success("Memory cleared!")
         st.rerun()
     
     st.divider()
     
-    # 🧠 Semantic Memory Viewer
-    st.subheader("🧠 Semantic Memory")
-    memory_expander = st.expander("View Long-Term Memories", expanded=False)
-    with memory_expander:
+    # Quick Stats
+    st.markdown("### 📊 Quick Stats")
+    
+    col1, col2 = st.columns(2)
+    with col1:
         try:
-            from memory.semantic_memory import get_memory_stats, retrieve_memories
-            
-            # Show stats
-            stats = get_memory_stats()
-            if "error" not in stats:
-                st.metric("Total Memories", stats.get("total_memories", 0))
-                
-                if stats.get("memory_types"):
-                    st.write("**By Type:**")
-                    for mem_type, count in stats["memory_types"].items():
-                        st.caption(f"- {mem_type}: {count}")
-                
-                # Search memories
-                search_query = st.text_input("Search memories:", placeholder="e.g., car prices", key="memory_search")
-                if search_query:
-                    memories = retrieve_memories(
-                        query=search_query,
-                        top_k=5,
-                        user_id=st.session_state.user_id,
-                        min_score=0.6
-                    )
-                    
-                    if memories:
-                        st.write(f"**Found {len(memories)} relevant memories:**")
-                        for i, mem in enumerate(memories, 1):
-                            with st.container():
-                                st.caption(f"**{i}. [{mem['memory_type']}]** - Score: {mem['score']:.2f}")
-                                st.text(mem['content'][:200] + "..." if len(mem['content']) > 200 else mem['content'])
-                                st.caption(f"🕐 {mem['timestamp'][:10]}")
-                    else:
-                        st.info("No relevant memories found")
-            else:
-                st.warning("Memory collection not initialized")
-        except Exception as e:
-            st.error(f"Could not load memories: {e}")
+            from rag.qdrant_client import client
+            from config.settings import DOCUMENT_COLLECTION_NAME
+            collection_info = client.get_collection(DOCUMENT_COLLECTION_NAME)
+            doc_count = collection_info.points_count
+        except:
+            doc_count = 0
+        st.metric("Documents", doc_count, delta=None)
+    
+    with col2:
+        st.metric("Queries", st.session_state.turn_count, delta=None)
+    
+    # Memory count
+    try:
+        from memory.semantic_memory import get_memory_stats
+        stats = get_memory_stats()
+        memory_count = stats.get("total_memories", 0) if "error" not in stats else 0
+    except:
+        memory_count = 0
+    
+    st.metric("Memories", memory_count, delta=None)
     
     st.divider()
     
-    # Quick Upload Section
-    st.subheader("📤 Quick Upload")
-    upload_tab1, upload_tab2 = st.tabs(["PDF", "CSV"])
-    
-    with upload_tab1:
-        quick_pdf = st.file_uploader("Upload PDF", type=['pdf'], key="quick_pdf", label_visibility="collapsed")
-        if quick_pdf:
-            if st.button("Store PDF", key="store_quick_pdf"):
+    # Advanced Section (collapsed by default)
+    with st.expander("🧠 Advanced", expanded=False):
+        # Memory search
+        st.caption("**Search Memories**")
+        try:
+            from memory.semantic_memory import retrieve_memories
+            
+            search_query = st.text_input("Search:", placeholder="e.g., RAG systems", key="memory_search", label_visibility="collapsed")
+            if search_query:
+                memories = retrieve_memories(
+                    query=search_query,
+                    top_k=3,
+                    user_id=st.session_state.user_id,
+                    min_score=0.6
+                )
+                
+                if memories:
+                    for i, mem in enumerate(memories, 1):
+                        st.caption(f"**{i}.** {mem['content'][:100]}...")
+                        st.caption(f"Score: {mem['score']:.2f} | {mem['timestamp'][:10]}")
+                        if i < len(memories):
+                            st.markdown("---")
+                else:
+                    st.info("No memories found")
+        except Exception as e:
+            st.warning("Memory search unavailable")
+        
+        st.markdown("---")
+        
+        # Quick upload
+        st.caption("**Quick Upload**")
+        upload_type = st.radio("Type:", ["PDF", "CSV"], horizontal=True, label_visibility="collapsed")
+        
+        if upload_type == "PDF":
+            quick_file = st.file_uploader("Upload", type=['pdf'], key="quick_pdf", label_visibility="collapsed")
+            if quick_file and st.button("Store", key="store_pdf"):
                 from rag.pdf_processor import process_and_store_pdf
                 with st.spinner("Processing..."):
-                    result = process_and_store_pdf(quick_pdf, quick_pdf.name, st.session_state.user_id)
+                    result = process_and_store_pdf(quick_file, quick_file.name, st.session_state.user_id)
                     if result["success"]:
-                        st.success(f"✅ {result['chunks_stored']} chunks stored!")
+                        st.success(f"✓ {result['chunks_stored']} chunks")
                     else:
                         st.error(result["error"])
-    
-    with upload_tab2:
-        quick_csv = st.file_uploader("Upload CSV", type=['csv'], key="quick_csv", label_visibility="collapsed")
-        if quick_csv:
-            if st.button("Store CSV", key="store_quick_csv"):
+        else:
+            quick_file = st.file_uploader("Upload", type=['csv'], key="quick_csv", label_visibility="collapsed")
+            if quick_file and st.button("Store", key="store_csv"):
                 from database.csv_processor import process_and_store_csv
                 with st.spinner("Processing..."):
-                    result = process_and_store_csv(quick_csv, quick_csv.name, user_id=st.session_state.user_id)
+                    result = process_and_store_csv(quick_file, quick_file.name, user_id=st.session_state.user_id)
                     if result["success"]:
-                        st.success(f"✅ {result['rows']} rows stored!")
+                        st.success(f"✓ {result['rows']} rows")
                     else:
                         st.error(result["error"])
-    
-    st.caption("💡 For advanced options, visit the Documents page")
-    
-    st.divider()
-    
-    st.subheader("Session Memory")
-    memory_items = get_session_memory(st.session_state.session_id)
-    
-    if memory_items:
-        for item in memory_items:
-            with st.expander(f"Turn {item.get('turn', '?')}: {item['type']}", expanded=False):
-                st.text(item['content'])
-    else:
-        st.info("No session memory yet")
+        
+        st.caption("💡 Visit Documents page for more options")
 
 # ---------------------------
 # Display chat history
