@@ -240,26 +240,51 @@ def delete_document(doc_id: str) -> dict:
         dict with deletion status
     """
     try:
-        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        # First, scroll through the collection to find all points with matching doc_id
+        points_to_delete = []
         
-        # Delete all points with matching doc_id using proper filter
-        client.delete(
-            collection_name=DOCUMENT_COLLECTION_NAME,
-            points_selector=Filter(
-                must=[
-                    FieldCondition(
-                        key="doc_id",
-                        match=MatchValue(value=doc_id)
-                    )
-                ]
+        # Scroll through all points
+        offset = None
+        while True:
+            result = client.scroll(
+                collection_name=DOCUMENT_COLLECTION_NAME,
+                limit=100,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False
             )
-        )
+            
+            points, next_offset = result
+            
+            # Find points with matching doc_id
+            for point in points:
+                if point.payload and point.payload.get("doc_id") == doc_id:
+                    points_to_delete.append(point.id)
+            
+            # Check if we've reached the end
+            if next_offset is None:
+                break
+            offset = next_offset
         
-        return {
-            "success": True,
-            "doc_id": doc_id,
-            "message": "Document deleted successfully"
-        }
+        # Delete the points by their IDs
+        if points_to_delete:
+            client.delete(
+                collection_name=DOCUMENT_COLLECTION_NAME,
+                points_selector=points_to_delete
+            )
+            
+            return {
+                "success": True,
+                "doc_id": doc_id,
+                "message": f"Document deleted successfully ({len(points_to_delete)} chunks)"
+            }
+        else:
+            return {
+                "success": False,
+                "doc_id": doc_id,
+                "error": "Document not found"
+            }
+            
     except Exception as e:
         return {
             "success": False,
