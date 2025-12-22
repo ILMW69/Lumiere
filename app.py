@@ -1,4 +1,12 @@
 import streamlit as st
+import os
+
+# Load Streamlit secrets into environment variables BEFORE any other imports
+if hasattr(st, 'secrets'):
+    for key in ['OPENAI_API_KEY', 'QDRANT_URL', 'QDRANT_API_KEY', 'LANGFUSE_SECRET_KEY', 'LANGFUSE_PUBLIC_KEY', 'LANGFUSE_BASE_URL']:
+        if key in st.secrets:
+            os.environ[key] = st.secrets[key]
+
 import uuid
 import time
 import pandas as pd
