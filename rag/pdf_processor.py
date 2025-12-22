@@ -240,19 +240,19 @@ def delete_document(doc_id: str) -> dict:
         dict with deletion status
     """
     try:
-        # Delete all points with matching doc_id
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        
+        # Delete all points with matching doc_id using proper filter
         client.delete(
             collection_name=DOCUMENT_COLLECTION_NAME,
-            points_selector={
-                "filter": {
-                    "must": [
-                        {
-                            "key": "doc_id",
-                            "match": {"value": doc_id}
-                        }
-                    ]
-                }
-            }
+            points_selector=Filter(
+                must=[
+                    FieldCondition(
+                        key="doc_id",
+                        match=MatchValue(value=doc_id)
+                    )
+                ]
+            )
         )
         
         return {
