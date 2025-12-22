@@ -214,7 +214,7 @@ init_status = initialize_app()
 # Helper Functions
 # ---------------------------
 def render_chart(viz_config):
-    """Render visualization based on config from visualization agent."""
+    """Render enhanced visualization with stats sidebar."""
     if not viz_config:
         return
     
@@ -238,29 +238,112 @@ def render_chart(viz_config):
         st.caption(reasoning)
     
     try:
-        if chart_type == "bar":
-            fig = px.bar(df, x=x_col, y=y_col, title=title)
-            st.plotly_chart(fig, width='stretch')
-            
-        elif chart_type == "line":
-            fig = px.line(df, x=x_col, y=y_col, title=title, markers=True)
-            st.plotly_chart(fig, width='stretch')
-            
-        elif chart_type == "pie":
-            fig = px.pie(df, names=x_col, values=y_col, title=title)
-            st.plotly_chart(fig, width='stretch')
-            
-        elif chart_type == "scatter":
-            fig = px.scatter(df, x=x_col, y=y_col, title=title)
-            st.plotly_chart(fig, width='stretch')
-            
-        elif chart_type == "histogram":
-            fig = px.histogram(df, x=x_col, title=title)
-            st.plotly_chart(fig, width='stretch')
+        # Modern Plotly theme configuration
+        chart_config = {
+            'displayModeBar': True,
+            'displaylogo': False,
+            'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d']
+        }
         
-        # Show data table below chart
-        with st.expander("📋 View Data Table"):
-            st.dataframe(df, width='stretch')
+        # Professional color scheme (Apple-inspired)
+        colors = ['#007AFF', '#5856D6', '#AF52DE', '#FF2D55', '#FF9500', '#FFCC00', '#34C759', '#00C7BE']
+        
+        # Layout for chart and stats
+        col_chart, col_stats = st.columns([3, 1])
+        
+        with col_chart:
+            # Create chart based on type with enhanced styling
+            if chart_type == "bar":
+                fig = px.bar(df, x=x_col, y=y_col, title="")
+                fig.update_traces(marker_color=colors[0], marker_line_width=0)
+                
+            elif chart_type == "line":
+                fig = px.line(df, x=x_col, y=y_col, title="", markers=True)
+                fig.update_traces(line_color=colors[0], line_width=3, marker_size=8)
+                
+            elif chart_type == "pie":
+                fig = px.pie(df, names=x_col, values=y_col, title="")
+                fig.update_traces(marker=dict(colors=colors, line=dict(color='white', width=2)))
+                
+            elif chart_type == "scatter":
+                fig = px.scatter(df, x=x_col, y=y_col, title="")
+                fig.update_traces(marker=dict(size=12, color=colors[0], line=dict(width=0)))
+                
+            elif chart_type == "histogram":
+                fig = px.histogram(df, x=x_col, title="")
+                fig.update_traces(marker_color=colors[0], marker_line_width=0)
+            else:
+                # Default to table if unknown type
+                st.dataframe(df, use_container_width=True)
+                return
+            
+            # Apply modern styling to all charts
+            fig.update_layout(
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(family="SF Pro Display, -apple-system, system-ui, sans-serif", size=12, color='#1d1d1f'),
+                margin=dict(l=10, r=10, t=30, b=10),
+                height=400,
+                showlegend=True,
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1
+                ),
+                xaxis=dict(
+                    showgrid=True,
+                    gridwidth=1,
+                    gridcolor='rgba(0,0,0,0.05)',
+                    showline=False,
+                    zeroline=False
+                ),
+                yaxis=dict(
+                    showgrid=True,
+                    gridwidth=1,
+                    gridcolor='rgba(0,0,0,0.05)',
+                    showline=False,
+                    zeroline=False
+                ),
+                hovermode='closest'
+            )
+            
+            st.plotly_chart(fig, use_container_width=True, config=chart_config)
+        
+        with col_stats:
+            # Key statistics sidebar
+            st.markdown("### Key Stats")
+            
+            # Calculate stats for numeric column (y_col)
+            if y_col and y_col in df.columns:
+                numeric_col = df[y_col]
+                if pd.api.types.is_numeric_dtype(numeric_col):
+                    total = numeric_col.sum()
+                    avg = numeric_col.mean()
+                    max_val = numeric_col.max()
+                    min_val = numeric_col.min()
+                    count = len(numeric_col)
+                    
+                    st.metric("Total", f"{total:,.0f}" if total > 100 else f"{total:.2f}")
+                    st.metric("Average", f"{avg:,.0f}" if avg > 100 else f"{avg:.2f}")
+                    st.metric("Maximum", f"{max_val:,.0f}" if max_val > 100 else f"{max_val:.2f}")
+                    st.metric("Minimum", f"{min_val:,.0f}" if min_val > 100 else f"{min_val:.2f}")
+                    st.metric("Count", f"{count:,}")
+                else:
+                    # For non-numeric columns
+                    unique_count = df[y_col].nunique()
+                    total_rows = len(df)
+                    st.metric("Total Rows", f"{total_rows:,}")
+                    st.metric("Unique Values", f"{unique_count:,}")
+            else:
+                # General stats
+                st.metric("Total Rows", f"{len(df):,}")
+                st.metric("Columns", len(df.columns))
+        
+        # Show data table below chart (collapsed by default)
+        with st.expander("📋 View Data Table", expanded=False):
+            st.dataframe(df, use_container_width=True, height=300)
             
             # Add download button
             csv = df.to_csv(index=False)
@@ -268,7 +351,8 @@ def render_chart(viz_config):
                 label="📥 Download as CSV",
                 data=csv,
                 file_name="query_results.csv",
-                mime="text/csv"
+                mime="text/csv",
+                use_container_width=True
             )
     
     except Exception as e:
