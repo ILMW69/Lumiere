@@ -348,18 +348,24 @@ with st.sidebar:
         )[0]
         
         if docs:
-            # Group documents by their titles or show unique documents
+            # Group documents by their source (which contains the title)
             doc_info = {}
             for doc in docs:
                 if doc.payload:
-                    title = doc.payload.get("title", "Untitled")
+                    # Try to get title from different fields
                     source = doc.payload.get("source", "Unknown")
-                    chunk_index = doc.payload.get("chunk_index", 0)
+                    
+                    # Extract clean title from source (remove " (Sample Document)" suffix)
+                    if " (Sample Document)" in source:
+                        title = source.replace(" (Sample Document)", "")
+                    elif source != "Unknown":
+                        title = source
+                    else:
+                        title = doc.payload.get("title", "Untitled")
                     
                     # Group by title, store chunk count
                     if title not in doc_info:
                         doc_info[title] = {
-                            "source": source,
                             "chunks": 0
                         }
                     doc_info[title]["chunks"] += 1
@@ -375,7 +381,7 @@ with st.sidebar:
             st.info("No documents stored yet")
             
     except Exception as e:
-        st.warning("Unable to load documents")
+        st.warning(f"Unable to load documents: {str(e)}")
     
     st.divider()
     
