@@ -298,33 +298,10 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-st.divider()
-
 # ---------------------------
-# Session initialization
+# Settings & Advanced Panel (equal width, before chat)
 # ---------------------------
-if "session_id" not in st.session_state:
-    st.session_state.session_id = str(uuid.uuid4())
-
-if "user_id" not in st.session_state:
-    st.session_state.user_id = "streamlit_user"
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-if "turn_count" not in st.session_state:
-    st.session_state.turn_count = 0
-
-if "graph" not in st.session_state:
-    st.session_state.graph = build_graph()
-
-if "lumiere_mode" not in st.session_state:
-    st.session_state.lumiere_mode = "all_in"  # Default mode
-
-# ---------------------------
-# Settings Panel (collapsed by default)
-# ---------------------------
-col_settings, col_advanced = st.columns([4, 1])
+col_settings, col_advanced = st.columns(2)
 
 with col_settings:
     with st.expander("⚙️ Settings", expanded=False):
@@ -342,10 +319,10 @@ with col_settings:
                 "Mode",
                 options=list(mode_options.keys()),
                 format_func=lambda x: mode_options[x],
-                index=list(mode_options.keys()).index(st.session_state.lumiere_mode)
+                index=list(mode_options.keys()).index(st.session_state.get("lumiere_mode", "all_in"))
             )
             
-            if selected_mode != st.session_state.lumiere_mode:
+            if selected_mode != st.session_state.get("lumiere_mode", "all_in"):
                 st.session_state.lumiere_mode = selected_mode
                 st.rerun()
         
@@ -419,6 +396,29 @@ with col_advanced:
                         st.error(result["error"])
         
         st.caption("💡 Visit Documents page for more options")
+
+st.divider()
+
+# ---------------------------
+# Session initialization
+# ---------------------------
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
+
+if "user_id" not in st.session_state:
+    st.session_state.user_id = "streamlit_user"
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+if "turn_count" not in st.session_state:
+    st.session_state.turn_count = 0
+
+if "graph" not in st.session_state:
+    st.session_state.graph = build_graph()
+
+if "lumiere_mode" not in st.session_state:
+    st.session_state.lumiere_mode = "all_in"  # Default mode
 
 # ---------------------------
 # Clean Sidebar (Documents & Tables only)
