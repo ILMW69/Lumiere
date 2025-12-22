@@ -202,11 +202,20 @@ with tab2:
                     
                     # Delete button
                     if st.button("🗑️ Delete Table", key=f"del_{table['table_name']}"):
-                        if db_client.drop_table(table['table_name']):
-                            st.success("Table deleted!")
-                            st.rerun()
-                        else:
-                            st.error("Failed to delete table")
+                        try:
+                            table_name = table['table_name']
+                            print(f"Attempting to delete table: {table_name}")
+                            
+                            if db_client.drop_table(table_name):
+                                st.success(f"Successfully deleted table: {table_name}")
+                                st.rerun()
+                            else:
+                                st.error(f"Failed to delete table: {table_name}")
+                        except Exception as e:
+                            st.error(f"Error deleting table: {str(e)}")
+                            print(f"Exception in delete: {e}")
+                            import traceback
+                            traceback.print_exc()
         else:
             st.info("No tables in database yet. Upload a CSV to get started!")
 

@@ -140,10 +140,23 @@ class SQLiteClient:
             True if successful
         """
         try:
-            self.execute(f"DROP TABLE IF EXISTS {table_name}")
+            # Sanitize table name to prevent SQL injection
+            # Only allow alphanumeric and underscore
+            import re
+            if not re.match(r'^[a-zA-Z0-9_]+$', table_name):
+                print(f"Invalid table name: {table_name}")
+                return False
+            
+            # Execute DROP TABLE
+            query = f"DROP TABLE IF EXISTS `{table_name}`"
+            print(f"Executing: {query}")
+            self.execute(query)
+            print(f"Successfully dropped table: {table_name}")
             return True
         except Exception as e:
-            print(f"Error dropping table: {e}")
+            print(f"Error dropping table {table_name}: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def __enter__(self):
