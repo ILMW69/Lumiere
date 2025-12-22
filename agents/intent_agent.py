@@ -3,10 +3,17 @@ from config.settings import LLM_MODEL
 from memory.session_memory import get_session_memory
 from memory.semantic_memory import retrieve_memories, format_memories_for_context
 
-llm = ChatOpenAI(
-    model_name=LLM_MODEL,
-    temperature=0,
-)
+_llm = None
+
+def _get_llm():
+    """Lazy initialization of ChatOpenAI client."""
+    global _llm
+    if _llm is None:
+        _llm = ChatOpenAI(
+            model_name=LLM_MODEL,
+            temperature=0,
+        )
+    return _llm
 
 INTENT_PROMPT = """
 You are an intent classification agent for an AI knowledge workspace.
@@ -180,6 +187,7 @@ def intent_agent(state):
     except Exception as e:
         print(f"⚠️  Could not retrieve semantic memories: {e}")
 
+    llm = _get_llm()
     response = llm.invoke(
         INTENT_PROMPT.format(
             conversation_history=conversation_history + semantic_context,

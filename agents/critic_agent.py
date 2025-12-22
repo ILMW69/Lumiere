@@ -2,10 +2,17 @@ import re
 from langchain_openai import ChatOpenAI
 from config.settings import LLM_MODEL
 
-llm = ChatOpenAI(
-    model_name=LLM_MODEL,
-    temperature=0,
-)
+_llm = None
+
+def _get_llm():
+    """Lazy initialization of ChatOpenAI client."""
+    global _llm
+    if _llm is None:
+        _llm = ChatOpenAI(
+            model_name=LLM_MODEL,
+            temperature=0,
+        )
+    return _llm
 
 CRITIC_PROMPT = """
 You are a critic agent evaluating an AI-generated answer.
@@ -106,6 +113,7 @@ def critic_agent(
         context_blocks.append(f"{d['text']}\nSource: {source}")
 
     context = "\n\n".join(context_blocks)
+    llm = _get_llm()
     response = llm.invoke(
         CRITIC_PROMPT.format(
             context=context,
