@@ -6,8 +6,15 @@ from config.settings import OPENAI_API_KEY, LLM_MODEL
 from database.sqlite_client import SQLiteClient
 import json
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+_client = None
 db = SQLiteClient()
+
+def _get_client():
+    """Lazy initialization of OpenAI client."""
+    global _client
+    if _client is None:
+        _client = OpenAI(api_key=OPENAI_API_KEY)
+    return _client
 
 
 def get_database_schema() -> str:
@@ -76,6 +83,7 @@ Return JSON with:
 Database Schema:
 """ + schema
 
+    client = _get_client()
     response = client.chat.completions.create(
         model=LLM_MODEL,
         messages=[
