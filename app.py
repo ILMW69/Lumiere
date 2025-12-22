@@ -332,8 +332,8 @@ with st.sidebar:
     
     st.divider()
     
-    # Document Library
-    st.markdown("### Document Library")
+    # Document Library (PDFs only)
+    st.markdown("### Documents")
     
     try:
         from rag.qdrant_client import client
@@ -342,63 +342,68 @@ with st.sidebar:
         # Scroll all documents with their metadata
         docs = client.scroll(
             collection_name=DOCUMENT_COLLECTION_NAME,
-            limit=100,  # Adjust if you have more documents
+            limit=100,
             with_payload=True,
             with_vectors=False
         )[0]
         
+        pdf_docs = set()
+        sample_docs = set()
+        
         if docs:
-            # Group documents by their unique identifiers
-            doc_info = {}
             for doc in docs:
                 if doc.payload:
-                    # Priority 1: Check for uploaded documents (PDFs, CSVs)
                     filename = doc.payload.get("filename")
                     doc_type = doc.payload.get("document_type")
                     
-                    if filename:
-                        # This is an uploaded document
-                        doc_key = filename
-                        if doc_key not in doc_info:
-                            doc_info[doc_key] = {
-                                "type": doc_type or "document",
-                                "chunks": 0
-                            }
-                        doc_info[doc_key]["chunks"] += 1
-                    else:
-                        # Priority 2: Check for sample documents
+                    # Check for PDF documents
+                    if filename and doc_type == "pdf":
+                        pdf_docs.add(filename)
+                    # Check for sample documents
+                    elif not filename:
                         source = doc.payload.get("source", "")
-                        if source:
-                            # Extract clean title from source
-                            if " (Sample Document)" in source:
-                                title = source.replace(" (Sample Document)", "")
-                            else:
-                                title = source
-                            
-                            doc_key = title
-                            if doc_key not in doc_info:
-                                doc_info[doc_key] = {
-                                    "type": "sample",
-                                    "chunks": 0
-                                }
-                            doc_info[doc_key]["chunks"] += 1
+                        if " (Sample Document)" in source:
+                            title = source.replace(" (Sample Document)", "")
+                            sample_docs.add(title)
+                        elif source:
+                            sample_docs.add(source)
             
-            # Display documents in a clean list
-            if doc_info:
-                for idx, (title, info) in enumerate(doc_info.items(), 1):
-                    with st.container():
-                        st.markdown(f"**{idx}. {title}**")
-                        type_label = f"{info['type'].upper()}" if info['type'] != 'sample' else "Sample"
-                        st.caption(f"{type_label} • {info['chunks']} chunks")
-                        if idx < len(doc_info):
-                            st.markdown("")  # Small spacing
+            # Display PDFs and samples
+            all_docs = sorted(list(pdf_docs)) + sorted(list(sample_docs))
+            if all_docs:
+                for idx, doc_name in enumerate(all_docs, 1):
+                    st.markdown(f"**{idx}.** {doc_name}")
             else:
-                st.info("No documents stored yet")
+                st.caption("No documents")
         else:
-            st.info("No documents stored yet")
+            st.caption("No documents")
             
     except Exception as e:
-        st.warning(f"Unable to load documents")
+        st.caption("Unable to load")
+    
+    st.divider()
+    
+    # Tables (CSVs)
+    st.markdown("### Tables")
+    
+    try:
+        from database.sqlite_client import client as db_client
+        
+        # Get all tables from SQLite
+        cursor = db_client.execute_query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        tables = [row[0] for row in cursor.fetchall()]
+        
+        # Filter out system tables
+        user_tables = [t for t in tables if not t.startswith('sqlite_')]
+        
+        if user_tables:
+            for idx, table_name in enumerate(user_tables, 1):
+                st.markdown(f"**{idx}.** {table_name}")
+        else:
+            st.caption("No tables")
+            
+    except Exception as e:
+        st.caption("Unable to load")
     
     st.divider()
     
