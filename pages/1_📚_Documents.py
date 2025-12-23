@@ -179,8 +179,11 @@ with tab2:
     with col2:
         st.subheader("Database Tables")
         
+        # Get user_id from session state
+        user_id = st.session_state.get("user_id", "default_user")
+        
         # List tables
-        tables = list_all_tables()
+        tables = list_all_tables(user_id=user_id)
         
         if tables:
             st.write(f"**Total Tables:** {len(tables)}")
@@ -195,7 +198,7 @@ with tab2:
                     
                     # Show preview
                     if st.button("👁️ View Preview", key=f"preview_{table['table_name']}"):
-                        preview = get_table_preview(table['table_name'], limit=10)
+                        preview = get_table_preview(table['table_name'], user_id=user_id, limit=10)
                         if preview["success"]:
                             st.write("**Sample Data:**")
                             st.dataframe(preview["preview_rows"], use_container_width=True)

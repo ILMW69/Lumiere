@@ -108,20 +108,23 @@ def parse_csv(file: BinaryIO) -> pd.DataFrame:
 def create_table_from_dataframe(
     df: pd.DataFrame,
     table_name: str,
+    user_id: str,
     if_exists: str = 'fail'
 ) -> Dict[str, Any]:
     """
-    Create SQLite table from pandas DataFrame.
+    Create SQLite table from pandas DataFrame in user-specific database.
     
     Args:
         df: pandas DataFrame
         table_name: Name for the table
+        user_id: User identifier for database isolation
         if_exists: 'fail', 'replace', or 'append'
     
     Returns:
         dict with creation status
     """
     table_name = sanitize_table_name(table_name)
+    db_client = get_user_client(user_id)
     
     # Check if table exists
     if db_client.table_exists(table_name):
@@ -169,20 +172,23 @@ def create_table_from_dataframe(
 
 def insert_dataframe(
     df: pd.DataFrame,
-    table_name: str
+    table_name: str,
+    user_id: str
 ) -> Dict[str, Any]:
     """
-    Insert DataFrame rows into SQLite table.
+    Insert DataFrame rows into SQLite table in user-specific database.
     
     Args:
         df: pandas DataFrame
         table_name: Target table name
+        user_id: User identifier for database isolation
     
     Returns:
         dict with insertion status
     """
     table_name = sanitize_table_name(table_name)
     upload_timestamp = datetime.now().isoformat()
+    db_client = get_user_client(user_id)
     
     # Add metadata columns
     df['_upload_timestamp'] = upload_timestamp
@@ -262,12 +268,12 @@ def process_and_store_csv(
         }
     
     # Create table
-    create_result = create_table_from_dataframe(df, table_name, if_exists)
+    create_result = create_table_from_dataframe(df, table_name, user_id, if_exists)
     if not create_result["success"]:
         return create_result
     
     # Insert data
-    insert_result = insert_dataframe(df, table_name)
+    insert_result = insert_dataframe(df, table_name, user_id)
     
     if insert_result["success"]:
         return {
@@ -284,17 +290,19 @@ def process_and_store_csv(
         return insert_result
 
 
-def get_table_preview(table_name: str, limit: int = 5) -> Dict[str, Any]:
+def get_table_preview(table_name: str, user_id: str, limit: int = 5) -> Dict[str, Any]:
     """
     Get preview of table data.
     
     Args:
         table_name: Name of the table
+        user_id: User identifier for database isolation
         limit: Number of rows to return
     
     Returns:
         dict with preview data
     """
+    db_client = get_user_client(user_id)
     table_name = sanitize_table_name(table_name)
     
     if not db_client.table_exists(table_name):
@@ -326,13 +334,17 @@ def get_table_preview(table_name: str, limit: int = 5) -> Dict[str, Any]:
         }
 
 
-def list_all_tables() -> List[Dict[str, Any]]:
+def list_all_tables(user_id: str) -> List[Dict[str, Any]]:
     """
-    List all tables with their metadata.
+    List all tables from user-specific database with their metadata.
+    
+    Args:
+        user_id: User identifier for database isolation
     
     Returns:
         List of table info dicts
     """
+    db_client = get_user_client(user_id)
     tables = []
     
     for table_name in db_client.list_tables():
