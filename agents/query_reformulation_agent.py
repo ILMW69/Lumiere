@@ -2,17 +2,11 @@ from langchain_openai import ChatOpenAI
 from config.settings import LLM_MODEL
 from memory.session_memory import get_session_memory
 
-_llm = None
-
-def _get_llm():
-    """Lazy initialization of ChatOpenAI client."""
-    global _llm
-    if _llm is None:
-        _llm = ChatOpenAI(
-            model=LLM_MODEL,
-            temperature=0,
-        )
-    return _llm
+# Initialize ChatOpenAI client at module load
+llm = ChatOpenAI(
+    model=LLM_MODEL,
+    temperature=0,
+)
 
 QUERY_REFORMULATION_PROMPT = """
 You are a query reformulation agent.
@@ -82,7 +76,7 @@ def reformulate_query(query: str, session_id: str) -> str:
     conversation_history = "\n".join([m["content"] for m in recent])
     
     # Reformulate the query
-    llm = _get_llm()
+    
     response = llm.invoke(
         QUERY_REFORMULATION_PROMPT.format(
             conversation_history=conversation_history,

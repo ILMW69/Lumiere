@@ -3,17 +3,11 @@ from observability.langfuse_client import langfuse
 from langchain_openai import ChatOpenAI
 from config.settings import LLM_MODEL
 
-_llm = None
-
-def _get_llm():
-    """Lazy initialization of ChatOpenAI client."""
-    global _llm
-    if _llm is None:
-        _llm = ChatOpenAI(
-            model=LLM_MODEL,
-            temperature=0,
-        )
-    return _llm
+# Initialize ChatOpenAI client at module load
+llm = ChatOpenAI(
+    model=LLM_MODEL,
+    temperature=0,
+)
 
 REASONING_PROMPT = """
 You are a reasoning agent in an AI knowledge workspace.
@@ -109,7 +103,7 @@ def reasoning_agent(question: str, retrieved_docs: list[dict], session_id: str) 
     })
     memory_read_span.end()
     
-    llm = _get_llm()
+    
     response = llm.invoke(
         REASONING_PROMPT.format(
             conversation_history=conversation_history,

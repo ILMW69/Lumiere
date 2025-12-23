@@ -4,17 +4,11 @@ SQL Reasoning Agent - Interprets SQL results and generates natural language resp
 from langchain_openai import ChatOpenAI
 from config.settings import LLM_MODEL
 
-_llm = None
-
-def _get_llm():
-    """Lazy initialization of ChatOpenAI client."""
-    global _llm
-    if _llm is None:
-        _llm = ChatOpenAI(
-            model_name=LLM_MODEL,
-            temperature=0.3,
-        )
-    return _llm
+# Initialize ChatOpenAI client at module load
+llm = ChatOpenAI(
+    model_name=LLM_MODEL,
+    temperature=0.3,
+)
 
 SQL_REASONING_PROMPT = """You are a data analysis assistant. Your job is to interpret SQL query results and provide clear, natural language answers.
 
@@ -60,7 +54,7 @@ def sql_reasoning_agent(state):
     formatted_data = sql_results.get("formatted_data", "No data")
     
     # Generate natural language response
-    llm = _get_llm()
+    
     response = llm.invoke(
         SQL_REASONING_PROMPT.format(
             question=question,
