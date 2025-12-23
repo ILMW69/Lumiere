@@ -29,32 +29,123 @@ st.set_page_config(
 # ---------------------------
 from datetime import datetime
 import platform
+import json
+import requests
 
-# Generate or retrieve unique user ID for this session
+# Helper function to get geographic data from IP
+def get_geo_data():
+    """Get geographic data based on IP address"""
+    try:
+        # Using ipapi.co for geolocation (free tier)
+        response = requests.get('https://ipapi.co/json/', timeout=2)
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "country": data.get("country_name", "Unknown"),
+                "country_code": data.get("country_code", "Unknown"),
+                "city": data.get("city", "Unknown"),
+                "region": data.get("region", "Unknown"),
+                "timezone": data.get("timezone", "Unknown"),
+                "ip": data.get("ip", "Unknown")
+            }
+    except Exception as e:
+        print(f"Geo lookup failed: {e}")
+    return {
+        "country": "Unknown",
+        "country_code": "Unknown", 
+        "city": "Unknown",
+        "region": "Unknown",
+        "timezone": "Unknown",
+        "ip": "Unknown"
+    }
+
+# Initialize session tracking
 if "user_id" not in st.session_state:
     st.session_state.user_id = str(uuid.uuid4())
-    st.session_state.session_start = datetime.now().isoformat()
+    st.session_state.session_start = datetime.now()
+    st.session_state.session_start_iso = datetime.now().isoformat()
+    
+    # Get geographic data
+    geo_data = get_geo_data()
+    
+    # Initialize feature usage tracking
+    st.session_state.feature_usage = {
+        "rag_queries": 0,
+        "sql_queries": 0,
+        "visualizations": 0,
+        "documents_uploaded": 0,
+        "tables_uploaded": 0,
+        "feedbacks_given": 0
+    }
+    
+    # Initialize error tracking
+    st.session_state.error_tracking = {
+        "total_errors": 0,
+        "error_types": {},
+        "last_error": None
+    }
     
     # Capture user metadata
     st.session_state.user_metadata = {
         "first_visit": datetime.now().isoformat(),
         "user_agent": st.context.headers.get("User-Agent", "Unknown") if hasattr(st, 'context') and hasattr(st.context, 'headers') else "Unknown",
         "platform": platform.system(),
-        "session_count": 1
+        "session_count": 1,
+        "country": geo_data["country"],
+        "country_code": geo_data["country_code"],
+        "city": geo_data["city"],
+        "region": geo_data["region"],
+        "timezone": geo_data["timezone"],
+        "ip": geo_data["ip"]
     }
 else:
+    # Update session start for duration tracking
+    if "session_start" not in st.session_state:
+        st.session_state.session_start = datetime.now()
+        st.session_state.session_start_iso = datetime.now().isoformat()
+    
+    # Initialize tracking dicts if not exist
+    if "feature_usage" not in st.session_state:
+        st.session_state.feature_usage = {
+            "rag_queries": 0,
+            "sql_queries": 0,
+            "visualizations": 0,
+            "documents_uploaded": 0,
+            "tables_uploaded": 0,
+            "feedbacks_given": 0
+        }
+    
+    if "error_tracking" not in st.session_state:
+        st.session_state.error_tracking = {
+            "total_errors": 0,
+            "error_types": {},
+            "last_error": None
+        }
+    
     # Increment session count for returning users
     if "user_metadata" in st.session_state:
         st.session_state.user_metadata["session_count"] = st.session_state.user_metadata.get("session_count", 0) + 1
         st.session_state.user_metadata["last_visit"] = datetime.now().isoformat()
 
+# Calculate session duration
+session_duration_seconds = (datetime.now() - st.session_state.session_start).total_seconds()
+session_duration_minutes = round(session_duration_seconds / 60, 2)
+
 # Store user_id and metadata in environment for Langfuse tracking
 os.environ["LANGFUSE_USER_ID"] = st.session_state.user_id
 
-# Store metadata as JSON string for Langfuse
+# Store comprehensive metadata as JSON for Langfuse
 if "user_metadata" in st.session_state:
-    import json
-    os.environ["LANGFUSE_USER_METADATA"] = json.dumps(st.session_state.user_metadata)
+    comprehensive_metadata = {
+        **st.session_state.user_metadata,
+        "session_duration_minutes": session_duration_minutes,
+        "feature_usage": st.session_state.feature_usage,
+        "error_tracking": {
+            "total_errors": st.session_state.error_tracking["total_errors"],
+            "error_types": list(st.session_state.error_tracking["error_types"].keys())
+        }
+    }
+    os.environ["LANGFUSE_USER_METADATA"] = json.dumps(comprehensive_metadata)
 
 # ---------------------------
 # Apple-like Custom CSS
@@ -636,27 +727,53 @@ with st.sidebar:
     st.divider()
     
     # User Session Info (for monitoring/debugging)
-    with st.expander("🔍 Session Info", expanded=False):
+    with st.expander("🔍 Session Analytics", expanded=False):
+        # Basic Info
+        st.markdown("### 👤 User Info")
         st.caption("**User ID:**")
-        st.code(st.session_state.user_id, language=None)
+        st.code(st.session_state.user_id[:16] + "...", language=None)
         
+        # Session Stats
+        st.markdown("### 📊 Session Stats")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Session Count", st.session_state.user_metadata.get("session_count", 1))
+            st.metric("Duration", f"{session_duration_minutes} min")
+        with col2:
+            st.metric("Total Errors", st.session_state.error_tracking["total_errors"])
+            st.metric("Feedbacks", st.session_state.feature_usage.get("feedbacks_given", 0))
+        
+        # Geographic Info
         if "user_metadata" in st.session_state:
             metadata = st.session_state.user_metadata
-            st.caption("**Session Count:**")
-            st.text(metadata.get("session_count", 1))
-            
+            st.markdown("### 🌍 Location")
+            st.text(f"🌎 {metadata.get('city', 'Unknown')}, {metadata.get('country', 'Unknown')}")
+            st.text(f"🕐 {metadata.get('timezone', 'Unknown')}")
+        
+        # Feature Usage
+        st.markdown("### 🎯 Feature Usage")
+        usage = st.session_state.feature_usage
+        st.text(f"💬 RAG Queries: {usage.get('rag_queries', 0)}")
+        st.text(f"🗄️ SQL Queries: {usage.get('sql_queries', 0)}")
+        st.text(f"📊 Visualizations: {usage.get('visualizations', 0)}")
+        st.text(f"📄 Docs Uploaded: {usage.get('documents_uploaded', 0)}")
+        st.text(f"📋 Tables Uploaded: {usage.get('tables_uploaded', 0)}")
+        
+        # Timestamps
+        st.markdown("### ⏰ Timestamps")
+        if "user_metadata" in st.session_state:
             st.caption("**First Visit:**")
-            st.text(metadata.get("first_visit", "N/A"))
+            st.text(metadata.get("first_visit", "N/A")[:19])
             
             if "last_visit" in metadata:
                 st.caption("**Last Visit:**")
-                st.text(metadata["last_visit"])
-            
-            st.caption("**Platform:**")
-            st.text(metadata.get("platform", "Unknown"))
-            
-            st.caption("**User Agent:**")
-            st.text(metadata.get("user_agent", "Unknown")[:50] + "...")
+                st.text(metadata["last_visit"][:19])
+        
+        # Tech Info
+        st.markdown("### 💻 Technical")
+        st.text(f"Platform: {metadata.get('platform', 'Unknown')}")
+        user_agent = metadata.get("user_agent", "Unknown")
+        st.text(f"Browser: {user_agent[:40]}...")
 
 # ---------------------------
 # Display chat history
@@ -738,15 +855,28 @@ if user_input:
                 span.set_attribute("user_query", user_query)
                 span.set_attribute("tags", "streamlit,streaming,chat")
                 
-                # Add user metadata if available
+                # Add comprehensive user metadata
                 if "user_metadata" in st.session_state:
                     metadata = st.session_state.user_metadata
                     span.set_attribute("user.first_visit", metadata.get("first_visit", ""))
                     span.set_attribute("user.session_count", metadata.get("session_count", 0))
                     span.set_attribute("user.user_agent", metadata.get("user_agent", "Unknown"))
                     span.set_attribute("user.platform", metadata.get("platform", "Unknown"))
+                    span.set_attribute("user.country", metadata.get("country", "Unknown"))
+                    span.set_attribute("user.city", metadata.get("city", "Unknown"))
+                    span.set_attribute("user.timezone", metadata.get("timezone", "Unknown"))
                     if "last_visit" in metadata:
                         span.set_attribute("user.last_visit", metadata["last_visit"])
+                
+                # Add session analytics
+                span.set_attribute("session.duration_minutes", session_duration_minutes)
+                span.set_attribute("session.total_errors", st.session_state.error_tracking["total_errors"])
+                
+                # Add feature usage
+                usage = st.session_state.feature_usage
+                span.set_attribute("features.rag_queries", usage.get("rag_queries", 0))
+                span.set_attribute("features.sql_queries", usage.get("sql_queries", 0))
+                span.set_attribute("features.visualizations", usage.get("visualizations", 0))
             
             # Stream through the graph
             final_state = None
@@ -869,16 +999,34 @@ if user_input:
             
             answer = result.get("answer", "Sorry, I couldn't generate an answer.")
             
+            # Track feature usage based on query type
+            intent = result.get("intent", "unknown")
+            if intent == "data_analysis":
+                st.session_state.feature_usage["sql_queries"] = st.session_state.feature_usage.get("sql_queries", 0) + 1
+            elif result.get("needs_rag"):
+                st.session_state.feature_usage["rag_queries"] = st.session_state.feature_usage.get("rag_queries", 0) + 1
+            
+            # Track visualization
+            viz_config = result.get("visualization_config")
+            if viz_config and viz_config.get("chart_type") != "table":
+                st.session_state.feature_usage["visualizations"] = st.session_state.feature_usage.get("visualizations", 0) + 1
+            
             # Display the final answer
             answer_container.markdown(answer)
             
             # Display visualization if available (Data Analyst mode)
-            viz_config = result.get("visualization_config")
             if viz_config and viz_config.get("chart_type") != "table":
                 render_chart(viz_config)
             
         except Exception as e:
             error_msg = str(e)
+            
+            # Track error
+            st.session_state.error_tracking["total_errors"] += 1
+            st.session_state.error_tracking["last_error"] = error_msg
+            error_type = type(e).__name__
+            st.session_state.error_tracking["error_types"][error_type] = st.session_state.error_tracking["error_types"].get(error_type, 0) + 1
+            
             if "timed out" in error_msg.lower() or "timeout" in error_msg.lower():
                 answer = "⏱️ Sorry, the request timed out. The vector database might be slow or unreachable. Please try again."
             else:
@@ -919,3 +1067,41 @@ if user_input:
     st.session_state.messages.append(
         {"role": "assistant", "content": answer}
     )
+    
+    # Add feedback component after answer
+    st.markdown("---")
+    st.markdown("**Was this answer helpful?**")
+    feedback_col1, feedback_col2, feedback_col3 = st.columns([1, 1, 8])
+    
+    with feedback_col1:
+        if st.button("👍", key=f"thumbs_up_{st.session_state.turn_count}", help="Helpful"):
+            st.session_state.feature_usage["feedbacks_given"] = st.session_state.feature_usage.get("feedbacks_given", 0) + 1
+            # Store feedback in memory
+            append_session_memory(
+                session_id=st.session_state.session_id,
+                item={
+                    "type": "feedback",
+                    "rating": "positive",
+                    "turn": st.session_state.turn_count,
+                    "query": user_input,
+                    "answer": answer
+                }
+            )
+            st.success("Thanks for your feedback!")
+    
+    with feedback_col2:
+        if st.button("👎", key=f"thumbs_down_{st.session_state.turn_count}", help="Not helpful"):
+            st.session_state.feature_usage["feedbacks_given"] = st.session_state.feature_usage.get("feedbacks_given", 0) + 1
+            # Store negative feedback
+            append_session_memory(
+                session_id=st.session_state.session_id,
+                item={
+                    "type": "feedback",
+                    "rating": "negative",
+                    "turn": st.session_state.turn_count,
+                    "query": user_input,
+                    "answer": answer
+                }
+            )
+            st.warning("Thanks for your feedback. We'll work on improving!")
+
