@@ -16,14 +16,15 @@ def intent_node(state):
 def retrieval_node(state):
     query = state.get("question") or state["messages"][-1]
     session_id = state.get("session_id")
+    user_id = state.get("user_id", "default_user")  # Get user_id from state
     
-    print(f"📦 Retrieval node - Session ID: {session_id}")
+    print(f"📦 Retrieval node - Session ID: {session_id}, User ID: {user_id}")
     
     # Reformulate query if it contains pronouns
     reformulated_query = reformulate_query(query, session_id)
     
-    # Retrieve documents with reranking (top_k=5 for better coverage)
-    docs = retrieve(reformulated_query, top_k=5, use_reranker=True, initial_k=20)
+    # Retrieve documents with reranking from user-specific collection
+    docs = retrieve(reformulated_query, user_id=user_id, top_k=5, use_reranker=True, initial_k=20)
     
     # When using reranker, don't filter by score - reranker already sorted by relevance
     # Only use MIN_SCORE filter if NOT using reranker (vector scores are 0-1 range)
@@ -84,11 +85,12 @@ def general_reasoning_node(state):
 def sql_execution_node(state):
     """Execute SQL query from natural language."""
     question = state.get("question") or state["messages"][-1]
+    user_id = state.get("user_id", "default_user")  # Get user_id from state
     
-    print(f"🗄️  SQL execution node - Query: {question}")
+    print(f"🗄️  SQL execution node - Query: {question}, User ID: {user_id}")
     
-    # Convert natural language to SQL and execute
-    sql_results = text_to_sql(question)
+    # Convert natural language to SQL and execute on user-specific database
+    sql_results = text_to_sql(question, user_id)
     
     state["sql_results"] = sql_results
     state["sql_query"] = sql_results.get("sql")

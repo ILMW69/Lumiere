@@ -8,19 +8,34 @@ from pathlib import Path
 
 
 class SQLiteClient:
-    """SQLite database client for Lumiere."""
+    """SQLite database client for Lumiere with user isolation."""
     
-    def __init__(self, db_path: str = "lumiere.db"):
+    def __init__(self, db_path: str = "lumiere.db", user_id: Optional[str] = None):
         """
         Initialize SQLite client.
         
         Args:
-            db_path: Path to SQLite database file
+            db_path: Path to SQLite database file (used only if user_id is None)
+            user_id: User identifier for creating user-specific database
         """
         # Store in project root
         project_root = Path(__file__).parent.parent
-        self.db_path = project_root / db_path
+        
+        if user_id:
+            # Create user-specific database
+            # Sanitize user_id for filename
+            safe_user_id = user_id.replace("-", "_")
+            db_filename = f"lumiere_user_{safe_user_id}.db"
+            self.db_path = project_root / "databases" / db_filename
+            
+            # Ensure databases directory exists
+            self.db_path.parent.mkdir(exist_ok=True)
+        else:
+            # Use default database (legacy support)
+            self.db_path = project_root / db_path
+            
         self.connection = None
+        self.user_id = user_id
     
     def connect(self):
         """Establish database connection."""
@@ -169,5 +184,17 @@ class SQLiteClient:
         self.close()
 
 
-# Global client instance
+# Global client instance (legacy default - for backward compatibility)
 client = SQLiteClient()
+
+def get_user_client(user_id: str) -> SQLiteClient:
+    """
+    Get or create a SQLiteClient for a specific user.
+    
+    Args:
+        user_id: User identifier
+    
+    Returns:
+        User-specific SQLiteClient instance
+    """
+    return SQLiteClient(user_id=user_id)

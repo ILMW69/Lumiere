@@ -19,7 +19,7 @@ except ImportError:
 from rag.chunking import chunk_text
 from rag.embeddings import embed_text
 from rag.qdrant_client import get_client
-from config.settings import DOCUMENT_COLLECTION_NAME
+from rag.collections import create_user_collection, get_user_collection_name
 
 
 def extract_text_from_pdf(file: BinaryIO, method: str = "pypdf2") -> str:
@@ -157,11 +157,14 @@ def process_and_store_pdf(
                 "chunks_processed": idx
             }
     
-    # Store in Qdrant
+    # Store in Qdrant in user-specific collection
     try:
+        # Ensure user collection exists
+        collection_name = create_user_collection(user_id, "documents")
+        
         client = get_client()
         client.upsert(
-            collection_name=DOCUMENT_COLLECTION_NAME,
+            collection_name=collection_name,
             points=points
         )
     except Exception as e:
@@ -182,22 +185,25 @@ def process_and_store_pdf(
     }
 
 
-def list_uploaded_documents(user_id: str = None, limit: int = 100) -> list[dict]:
+def list_uploaded_documents(user_id: str, limit: int = 100) -> list[dict]:
     """
-    List all documents in the collection with metadata.
+    List all documents in the user-specific collection with metadata.
     
     Args:
-        user_id: Filter by user (optional)
+        user_id: User identifier (required for collection isolation)
         limit: Maximum documents to return
     
     Returns:
         List of document metadata
     """
     try:
+        # Get user-specific collection name
+        collection_name = get_user_collection_name(user_id, "documents")
+        
         # Scroll through collection to get unique documents
         client = get_client()
         scroll_result = client.scroll(
-            collection_name=DOCUMENT_COLLECTION_NAME,
+            collection_name=collection_name,
             limit=limit,
             with_payload=True
         )
@@ -207,10 +213,6 @@ def list_uploaded_documents(user_id: str = None, limit: int = 100) -> list[dict]
         for point in scroll_result[0]:
             payload = point.payload
             doc_id = payload.get("doc_id")
-            
-            # Filter by user if specified
-            if user_id and payload.get("user_id") != user_id:
-                continue
             
             if doc_id and doc_id not in docs_by_id:
                 docs_by_id[doc_id] = {

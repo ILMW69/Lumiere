@@ -656,12 +656,15 @@ with st.sidebar:
     
     try:
         from rag.qdrant_client import get_client
-        from config.settings import DOCUMENT_COLLECTION_NAME
+        from rag.collections import get_user_collection_name
+        
+        # Get user-specific collection name
+        collection_name = get_user_collection_name(st.session_state.user_id, "documents")
         
         # Scroll all documents with their metadata
         client = get_client()
         docs = client.scroll(
-            collection_name=DOCUMENT_COLLECTION_NAME,
+            collection_name=collection_name,
             limit=100,
             with_payload=True,
             with_vectors=False
@@ -707,7 +710,10 @@ with st.sidebar:
     st.markdown("### Tables")
     
     try:
-        from database.sqlite_client import client as db_client
+        from database.sqlite_client import get_user_client
+        
+        # Get user-specific database client
+        db_client = get_user_client(st.session_state.user_id)
         
         # Get all tables from SQLite using the list_tables method
         tables = db_client.list_tables()

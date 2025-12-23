@@ -18,57 +18,38 @@ from qdrant_client.models import (
     MatchAny
 )
 
-from rag.qdrant_client import client
+from rag.qdrant_client import get_client
 from rag.embeddings import embed_text
+from rag.collections import create_user_collection, get_user_collection_name
 
 
-# Collection name for agent memories
-MEMORY_COLLECTION_NAME = "agent_memories"
+# Vector size for embeddings
 VECTOR_SIZE = 1536  # OpenAI ada-002 embedding size
-
-
-def create_memory_collection():
-    """
-    Create the Qdrant collection for storing agent memories.
-    Only creates if it doesn't already exist.
-    """
-    collections = client.get_collections().collections
-    existing = [c.name for c in collections]
-
-    if MEMORY_COLLECTION_NAME in existing:
-        print(f"✅ Memory collection '{MEMORY_COLLECTION_NAME}' already exists")
-        return
-    
-    client.create_collection(
-        collection_name=MEMORY_COLLECTION_NAME,
-        vectors_config=VectorParams(
-            size=VECTOR_SIZE,
-            distance=Distance.COSINE
-        )
-    )
-    print(f"✅ Created memory collection '{MEMORY_COLLECTION_NAME}'")
 
 
 def store_memory(
     content: str,
     memory_type: str,
-    user_id: Optional[str] = None,
+    user_id: str,
     session_id: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None
 ) -> str:
     """
-    Store a memory in the semantic memory system.
+    Store a memory in the user-specific semantic memory system.
     
     Args:
         content: The main content to remember (will be embedded)
         memory_type: Type of memory (conversation, preference, fact, pattern, error)
-        user_id: Optional user identifier
+        user_id: User identifier (required for collection isolation)
         session_id: Optional session identifier
         metadata: Additional metadata (mode, agents_used, chart_type, etc.)
     
     Returns:
         memory_id: Unique identifier for the stored memory
     """
+    # Ensure user collection exists
+    collection_name = create_user_collection(user_id, "memories")
+    
     # Generate unique ID
     memory_id = str(uuid.uuid4())
     
@@ -81,7 +62,7 @@ def store_memory(
         "content": content,
         "memory_type": memory_type,
         "timestamp": datetime.now().isoformat(),
-        "user_id": user_id or "anonymous",
+        "user_id": user_id,
         "session_id": session_id or "unknown"
     }
     
@@ -90,8 +71,9 @@ def store_memory(
         payload.update(metadata)
     
     # Store in Qdrant
+    client = get_client()
     client.upsert(
-        collection_name=MEMORY_COLLECTION_NAME,
+        collection_name=collection_name,
         points=[
             PointStruct(
                 id=memory_id,
@@ -106,31 +88,29 @@ def store_memory(
 
 def retrieve_memories(
     query: str,
+    user_id: str,
     top_k: int = 5,
     memory_types: Optional[List[str]] = None,
-    user_id: Optional[str] = None,
     min_score: float = 0.7,
     metadata_filter: Optional[Dict[str, Any]] = None
 ) -> List[Dict[str, Any]]:
     """
-    Retrieve relevant memories using semantic search.
+    Retrieve relevant memories from user-specific collection using semantic search.
     
     Args:
         query: The query to search for
+        user_id: User identifier (required for collection isolation)
         top_k: Number of memories to retrieve
         memory_types: Filter by memory types (e.g., ["conversation", "preference"])
-        user_id: Filter by user ID (applied post-retrieval, may return fewer than top_k)
         min_score: Minimum similarity score (0-1)
         metadata_filter: Additional filters (e.g., {"mode": "data_analyst"})
     
     Returns:
         List of memory dictionaries with content and metadata
-        
-    Note:
-        user_id filtering is done post-retrieval to avoid requiring Qdrant payload indexes.
-        If you need strict user isolation, consider creating separate collections per user
-        or creating a payload index for user_id in Qdrant.
     """
+    # Get user-specific collection name
+    collection_name = get_user_collection_name(user_id, "memories")
+    
     # Get embeddings for query
     query_vector = embed_text(query)
     
@@ -145,16 +125,6 @@ def retrieve_memories(
             )
         )
     
-    # Skip user_id filter to avoid index requirement
-    # User filtering can be done post-retrieval if needed
-    # if user_id:
-    #     must_conditions.append(
-    #         FieldCondition(
-    #             key="user_id",
-    #             match=MatchValue(value=user_id)
-    #         )
-    #     )
-    
     # Add metadata filters
     if metadata_filter:
         for key, value in metadata_filter.items():
@@ -168,38 +138,27 @@ def retrieve_memories(
     # Build filter object
     query_filter = Filter(must=must_conditions) if must_conditions else None
     
-    # Search Qdrant - use the older search method that should work
+    # Search Qdrant
+    client = get_client()
+    
     try:
-        # Try the v1.7+ search method
-        from qdrant_client.models import QueryRequest
-        results = client.search(
-            collection_name=MEMORY_COLLECTION_NAME,
-            query_vector=query_vector,
-            limit=top_k,
-            score_threshold=min_score,
-            query_filter=query_filter
-        )
-    except (AttributeError, TypeError):
-        # Fallback for newer versions
         results = client.query_points(
-            collection_name=MEMORY_COLLECTION_NAME,
+            collection_name=collection_name,
             query=query_vector,
             limit=top_k,
             score_threshold=min_score,
-            using=None,  # Use default vector
             query_filter=query_filter
         ).points
+    except Exception as e:
+        # Collection might not exist for new users
+        print(f"Memory retrieval error for user {user_id}: {e}")
+        return []
     
     # Format results
     memories = []
     for result in results:
-        # Handle both search result types
-        score = result.score if hasattr(result, 'score') else getattr(result, 'score', 1.0)
+        score = result.score if hasattr(result, 'score') else 1.0
         payload = result.payload if hasattr(result, 'payload') else {}
-        
-        # Optional post-filter by user_id (since we can't use indexed filter)
-        if user_id and payload.get("user_id") != user_id:
-            continue
         
         memory = {
             "memory_id": result.id,
@@ -246,7 +205,7 @@ def store_conversation_memory(
     response: str,
     mode: str,
     success: bool,
-    user_id: Optional[str] = None,
+    user_id: str,
     session_id: Optional[str] = None,
     **kwargs
 ) -> str:
@@ -258,7 +217,7 @@ def store_conversation_memory(
         response: Agent's response
         mode: Mode used (all_in, chat_rag, data_analyst)
         success: Whether the interaction was successful
-        user_id: Optional user identifier
+        user_id: User identifier (required for collection isolation)
         session_id: Optional session identifier
         **kwargs: Additional metadata (agents_used, chart_type, etc.)
     
@@ -289,7 +248,7 @@ def store_conversation_memory(
 def store_preference_memory(
     preference: str,
     category: str,
-    user_id: Optional[str] = None,
+    user_id: str,
     **kwargs
 ) -> str:
     """
@@ -298,7 +257,7 @@ def store_preference_memory(
     Args:
         preference: The preference description
         category: Category (visualization, query_style, etc.)
-        user_id: User identifier
+        user_id: User identifier (required for collection isolation)
         **kwargs: Additional metadata
     
     Returns:
@@ -322,6 +281,7 @@ def store_preference_memory(
 def store_pattern_memory(
     pattern_description: str,
     pattern_type: str,
+    user_id: str,
     example: Optional[str] = None,
     **kwargs
 ) -> str:
@@ -331,6 +291,7 @@ def store_pattern_memory(
     Args:
         pattern_description: Description of the pattern
         pattern_type: Type (sql_pattern, visualization_pattern, etc.)
+        user_id: User identifier (required for collection isolation)
         example: Example of the pattern in use
         **kwargs: Additional metadata
     
@@ -349,23 +310,30 @@ def store_pattern_memory(
     return store_memory(
         content=content,
         memory_type="pattern",
+        user_id=user_id,
         metadata=metadata
     )
 
 
-def get_memory_stats() -> Dict[str, Any]:
+def get_memory_stats(user_id: str) -> Dict[str, Any]:
     """
-    Get statistics about stored memories.
+    Get statistics about stored memories for a specific user.
+    
+    Args:
+        user_id: User identifier
     
     Returns:
         Dictionary with memory statistics
     """
+    collection_name = get_user_collection_name(user_id, "memories")
+    client = get_client()
+    
     try:
-        collection_info = client.get_collection(MEMORY_COLLECTION_NAME)
+        collection_info = client.get_collection(collection_name)
         
         # Get sample points to analyze types
         sample = client.scroll(
-            collection_name=MEMORY_COLLECTION_NAME,
+            collection_name=collection_name,
             limit=100
         )
         
@@ -381,10 +349,3 @@ def get_memory_stats() -> Dict[str, Any]:
         }
     except Exception as e:
         return {"error": str(e)}
-
-
-# Initialize collection on import
-try:
-    create_memory_collection()
-except Exception as e:
-    print(f"⚠️  Could not create memory collection: {e}")

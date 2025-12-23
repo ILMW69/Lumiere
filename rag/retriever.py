@@ -1,6 +1,6 @@
 from rag.qdrant_client import get_client
 from rag.embeddings import embed_text
-from config.settings import DOCUMENT_COLLECTION_NAME
+from rag.collections import get_user_collection_name
 from sentence_transformers import CrossEncoder
 
 # Initialize Cross-Encoder for reranking
@@ -14,12 +14,13 @@ def get_reranker():
         _reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
     return _reranker
 
-def retrieve(query: str, top_k: int = 5, use_reranker: bool = True, initial_k: int = 20) -> list[dict]:
+def retrieve(query: str, user_id: str, top_k: int = 5, use_reranker: bool = True, initial_k: int = 20) -> list[dict]:
     """
-    Retrieve relevant documents with optional reranking.
+    Retrieve relevant documents from user-specific collection with optional reranking.
     
     Args:
         query: The search query
+        user_id: User identifier for collection isolation
         top_k: Number of final results to return (default: 5)
         use_reranker: Whether to use Cross-Encoder reranking (default: True)
         initial_k: Number of candidates to retrieve before reranking (default: 20)
@@ -31,6 +32,9 @@ def retrieve(query: str, top_k: int = 5, use_reranker: bool = True, initial_k: i
         When using reranker, scores can be negative (not 0-1 range).
         Reranker already sorts by relevance, so no need for MIN_SCORE filtering.
     """
+    # Get user-specific collection name
+    collection_name = get_user_collection_name(user_id, "documents")
+    
     # Stage 1: Vector similarity search
     # Retrieve more candidates if using reranker, otherwise just get top_k
     retrieval_limit = initial_k if use_reranker else top_k
@@ -38,12 +42,18 @@ def retrieve(query: str, top_k: int = 5, use_reranker: bool = True, initial_k: i
     query_vector = embed_text(query)
 
     client = get_client()
-    results = client.query_points(
-        collection_name=DOCUMENT_COLLECTION_NAME,
-        query=query_vector,
-        limit=retrieval_limit,
-        with_payload=True
-    ).points
+    
+    try:
+        results = client.query_points(
+            collection_name=collection_name,
+            query=query_vector,
+            limit=retrieval_limit,
+            with_payload=True
+        ).points
+    except Exception as e:
+        # Collection might not exist for new users
+        print(f"Retrieval error for user {user_id}: {e}")
+        return []
 
     # Convert to list of dicts
     candidates = []

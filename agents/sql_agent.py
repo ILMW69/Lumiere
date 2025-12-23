@@ -3,11 +3,10 @@ SQL Agent - Converts natural language queries to SQL and executes them.
 """
 from openai import OpenAI
 from config.settings import OPENAI_API_KEY, LLM_MODEL
-from database.sqlite_client import SQLiteClient
+from database.sqlite_client import get_user_client
 import json
 
 _client = None
-db = SQLiteClient()
 
 def _get_client():
     """Lazy initialization of OpenAI client."""
@@ -17,8 +16,9 @@ def _get_client():
     return _client
 
 
-def get_database_schema() -> str:
-    """Get the current database schema for context."""
+def get_database_schema(user_id: str) -> str:
+    """Get the current database schema for context from user-specific database."""
+    db = get_user_client(user_id)
     tables = db.list_tables()
     
     if not tables:
@@ -120,9 +120,13 @@ def validate_sql(sql: str) -> tuple[bool, str]:
     return True, ""
 
 
-def execute_sql(sql: str) -> dict:
+def execute_sql(sql: str, user_id: str) -> dict:
     """
-    Execute SQL query safely and return results.
+    Execute SQL query safely and return results from user-specific database.
+    
+    Args:
+        sql: SQL query string
+        user_id: User identifier for database isolation
     
     Returns:
         dict with 'success', 'data', 'row_count', and optionally 'error'
@@ -138,6 +142,7 @@ def execute_sql(sql: str) -> dict:
         }
     
     try:
+        db = get_user_client(user_id)
         results = db.query(sql)
         return {
             "success": True,
@@ -204,15 +209,19 @@ def format_sql_results(results: list, limit: int = 10) -> str:
     return "\n".join(output)
 
 
-def text_to_sql(user_query: str) -> dict:
+def text_to_sql(user_query: str, user_id: str) -> dict:
     """
     Main function: Convert natural language to SQL and execute.
+    
+    Args:
+        user_query: Natural language query
+        user_id: User identifier for database isolation
     
     Returns:
         dict with query results and metadata
     """
-    # Get schema
-    schema = get_database_schema()
+    # Get schema from user-specific database
+    schema = get_database_schema(user_id)
     
     if schema == "No tables in database.":
         return {
@@ -240,8 +249,8 @@ def text_to_sql(user_query: str) -> dict:
     explanation = sql_result.get("explanation", "")
     reasoning = sql_result.get("reasoning", "")
     
-    # Execute SQL
-    exec_result = execute_sql(sql_query)
+    # Execute SQL on user-specific database
+    exec_result = execute_sql(sql_query, user_id)
     
     if not exec_result["success"]:
         return {

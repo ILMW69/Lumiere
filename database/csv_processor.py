@@ -6,7 +6,7 @@ from typing import BinaryIO, Dict, Any, List
 from datetime import datetime
 import re
 
-from database.sqlite_client import client as db_client
+from database.sqlite_client import get_user_client
 
 
 def sanitize_table_name(name: str) -> str:
