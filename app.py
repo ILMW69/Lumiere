@@ -156,11 +156,6 @@ if "session_id" not in st.session_state:
         "ip": geo_data["ip"]
     }
 
-# Save cookies only once if needed
-if st.session_state.get("cookies_need_save", False):
-    cookies.save()
-    st.session_state.cookies_need_save = False
-
 # Always initialize tracking dicts if not exist
 if "feature_usage" not in st.session_state:
     st.session_state.feature_usage = {
@@ -1167,3 +1162,11 @@ if user_input:
             )
             st.warning("Thanks for your feedback. We'll work on improving!")
 
+# ---------------------------
+# Save cookies at the end (after all UI is rendered)
+# ---------------------------
+# This prevents the save from blocking the chat interface display
+if st.session_state.get("cookies_need_save", False) and not st.session_state.get("cookies_saved", False):
+    cookies.save()
+    st.session_state.cookies_need_save = False
+    st.session_state.cookies_saved = True
