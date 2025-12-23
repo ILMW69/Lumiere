@@ -20,7 +20,14 @@ from rag.pdf_processor import list_uploaded_documents, process_and_store_pdf
 from database.csv_processor import list_all_tables, process_and_store_csv, sanitize_table_name
 
 # Observability
-from observability.langfuse_client import langfuse, langfuse_context
+from observability.langsmith_client import langsmith_enabled
+try:
+    from langchain_core.tracers.langchain import LangChainTracer
+    from langchain_core.tracers.context import tracing_v2_enabled
+    langsmith_tracer_available = True
+except ImportError:
+    langsmith_tracer_available = False
+    tracing_v2_enabled = None
 
 # Page configuration
 st.set_page_config(
@@ -318,8 +325,8 @@ def render_sidebar():
         st.divider()
         
         # ===== FOOTER =====
-        observability_status = "✅ enabled" if langfuse else "⚠️ disabled"
-        st.caption(f"🔍 **Observability:** Langfuse {observability_status}")
+        observability_status = "✅ enabled" if langsmith_enabled else "⚠️ disabled"
+        st.caption(f"🔍 **Observability:** LangSmith {observability_status}")
         st.caption(f"🆔 **Session:** `{st.session_state.session_id[:8]}...`")
 
 # ============================================
@@ -427,27 +434,8 @@ def render_visualization(viz_config: dict, sql_results: dict):
 def invoke_graph(user_message: str):
     """Invoke the LangGraph workflow with proper state management"""
     
-    # Create Langfuse generation/trace
-    generation = None
-    if langfuse:
-        try:
-            # Use generation() which is the correct method in Langfuse 2.0+
-            generation = langfuse.generation(
-                name="lumiere_chat",
-                user_id=st.session_state.user_id,
-                session_id=st.session_state.session_id,
-                input={"message": user_message, "mode": st.session_state.lumiere_mode},
-                metadata={
-                    "lumiere_mode": st.session_state.lumiere_mode,
-                    "message_count": len(st.session_state.messages),
-                    "timestamp": datetime.now().isoformat()
-                }
-            )
-        except Exception as e:
-            # Silently continue if Langfuse tracing fails
-            generation = None
-    else:
-        generation = None
+    # LangSmith automatically traces LangChain/LangGraph operations when enabled
+    # No manual instrumentation needed - just invoke the graph
     
     try:
         # Build initial state
@@ -567,26 +555,7 @@ def invoke_graph(user_message: str):
             except Exception as e:
                 print(f"Warning: Failed to store semantic memory: {e}")
         
-        # Update generation with output
-        if generation:
-            try:
-                generation.update(
-                    output={
-                        "answer": answer,
-                        "has_sql": bool(sql_results),
-                        "has_visualization": bool(visualization_config),
-                        "memory_signal": memory_signal
-                    }
-                )
-            except Exception as e:
-                pass  # Silently ignore Langfuse errors
-        
-        # Flush Langfuse events
-        if langfuse:
-            try:
-                langfuse.flush()
-            except Exception:
-                pass
+        # LangSmith automatically logs all LangChain/LangGraph operations
         
         return {
             "answer": answer,
@@ -595,41 +564,12 @@ def invoke_graph(user_message: str):
         }
     
     except Exception as e:
-        if generation:
-            try:
-                generation.update(
-                    output={"error": str(e)},
-                    level="ERROR"
-                )
-            except Exception:
-                pass  # Silently ignore Langfuse errors
-        
-        # Flush Langfuse events
-        if langfuse:
-            try:
-                langfuse.flush()
-            except Exception:
-                pass
-        
         st.error(f"❌ Error processing request: {e}")
         return {
             "answer": f"I encountered an error: {str(e)}",
             "sql_results": None,
             "visualization_config": None
         }
-    finally:
-        if generation:
-            try:
-                generation.end()
-            except Exception:
-                pass  # Silently ignore Langfuse errors
-        
-        # Final flush
-        if langfuse:
-            try:
-                langfuse.flush()
-            except Exception:
-                pass
 
 # ============================================
 # MAIN CHAT INTERFACE
