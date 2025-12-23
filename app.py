@@ -28,9 +28,8 @@ st.set_page_config(
 # ---------------------------
 # Cookie Manager for Persistent User ID
 # ---------------------------
-# Initialize cookie manager only once
-if "cookies_initialized" not in st.session_state:
-    st.session_state.cookies_initialized = True
+# Initialize cookie manager only once per session
+if "cookies" not in st.session_state:
     st.session_state.cookies = EncryptedCookieManager(
         prefix="lumiere_app_",
         password=os.environ.get("COOKIE_PASSWORD", "lumiere_secret_key_change_in_production_2024")
@@ -38,7 +37,7 @@ if "cookies_initialized" not in st.session_state:
 
 cookies = st.session_state.cookies
 
-# Wait for cookies to be ready (required)
+# Wait for cookies to be ready (required on first load)
 if not cookies.ready():
     st.stop()
 
