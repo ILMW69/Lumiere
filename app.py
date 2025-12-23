@@ -1,708 +1,1413 @@
-"""import streamlit as st
+""""""import streamlit as st
 
-Lumiere - AI Knowledge Workspaceimport os
+Lumiere - AI Knowledge Workspace
 
-Multi-agent RAG system with document management and data analytics
+Multi-agent RAG system with document management and data analyticsLumiere - AI Knowledge Workspaceimport os
 
-"""# Load Streamlit secrets into environment variables BEFORE any other imports
+"""
 
-import streamlit as stif hasattr(st, 'secrets'):
+import streamlit as stMulti-agent RAG system with document management and data analytics
+
+import uuid
+
+import hashlib"""# Load Streamlit secrets into environment variables BEFORE any other imports
+
+from datetime import datetime
+
+import plotly.graph_objects as goimport streamlit as stif hasattr(st, 'secrets'):
+
+import plotly.express as px
 
 import uuid    for key in ['OPENAI_API_KEY', 'QDRANT_URL', 'QDRANT_API_KEY', 'LANGFUSE_SECRET_KEY', 'LANGFUSE_PUBLIC_KEY', 'LANGFUSE_BASE_URL']:
 
-import hashlib        if key in st.secrets:
+# Imports for graph and agents
 
-from datetime import datetime            os.environ[key] = st.secrets[key]
+from graph.rag_graph import build_graphimport hashlib        if key in st.secrets:
 
-import plotly.graph_objects as go
+from graph.state import AgentState
 
-import plotly.express as pximport uuid
-
-import time
-
-# Imports for graph and agentsimport pandas as pd
-
-from graph.rag_graph import build_graphimport plotly.express as px
-
-from graph.state import AgentStateimport plotly.graph_objects as go
-
-from memory.session_memory import get_session_memory, append_session_memory, clear_session_memoryfrom streamlit_cookies_manager import EncryptedCookieManager
+from memory.session_memory import get_session_memory, append_session_memory, clear_session_memoryfrom datetime import datetime            os.environ[key] = st.secrets[key]
 
 from memory.semantic_memory import store_memory
 
-from graph.rag_graph import build_graph
+import plotly.graph_objects as go
 
-# Imports for document/CSV managementfrom memory.session_memory import get_session_memory, append_session_memory
+# Imports for document/CSV management
 
-from rag.pdf_processor import list_uploaded_documents, process_and_store_pdffrom langfuse import observe
+from rag.pdf_processor import list_uploaded_documents, process_and_store_pdfimport plotly.express as pximport uuid
 
 from database.csv_processor import list_all_tables, process_and_store_csv, sanitize_table_name
 
+import time
+
+# Observability
+
+from observability.langfuse_client import langfuse# Imports for graph and agentsimport pandas as pd
+
+
+
+# Page configurationfrom graph.rag_graph import build_graphimport plotly.express as px
+
 st.set_page_config(
 
-# Observability    page_title="Lumiere",
+    page_title="Lumiere - AI Knowledge Workspace",from graph.state import AgentStateimport plotly.graph_objects as go
 
-from observability.langfuse_client import langfuse    layout="wide",
+    page_icon="💡",
 
-    page_icon="🌟",
+    layout="wide",from memory.session_memory import get_session_memory, append_session_memory, clear_session_memoryfrom streamlit_cookies_manager import EncryptedCookieManager
 
-# Page configuration    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded"
 
-st.set_page_config()
+)from memory.semantic_memory import store_memory
 
-    page_title="Lumiere - AI Knowledge Workspace",
 
-    page_icon="💡",# ---------------------------
 
-    layout="wide",# Cookie Manager for Persistent User ID
+# Custom CSS for better UIfrom graph.rag_graph import build_graph
 
-    initial_sidebar_state="expanded"# ---------------------------
+st.markdown("""
 
-)# Initialize cookie manager only once per session
+<style># Imports for document/CSV managementfrom memory.session_memory import get_session_memory, append_session_memory
 
-if "cookies" not in st.session_state:
+    .stAlert {
 
-# Custom CSS for better UI    try:
+        padding: 0.5rem;from rag.pdf_processor import list_uploaded_documents, process_and_store_pdffrom langfuse import observe
 
-st.markdown("""        st.session_state.cookies = EncryptedCookieManager(
+        margin: 0.5rem 0;
 
-<style>            prefix="lumiere_app_",
+    }from database.csv_processor import list_all_tables, process_and_store_csv, sanitize_table_name
 
-    .stAlert {            password=os.environ.get("COOKIE_PASSWORD", "lumiere_secret_key_change_in_production_2024")
+    .mode-badge {
 
-        padding: 0.5rem;        )
+        display: inline-block;st.set_page_config(
 
-        margin: 0.5rem 0;        st.session_state.cookies_enabled = True
+        padding: 0.25rem 0.75rem;
 
-    }    except Exception as e:
+        border-radius: 1rem;# Observability    page_title="Lumiere",
 
-    .mode-badge {        print(f"Cookie manager initialization failed: {e}")
+        font-size: 0.85rem;
 
-        display: inline-block;        st.session_state.cookies = None
+        font-weight: 600;from observability.langfuse_client import langfuse    layout="wide",
 
-        padding: 0.25rem 0.75rem;        st.session_state.cookies_enabled = False
+        margin-bottom: 1rem;
 
-        border-radius: 1rem;
-
-        font-size: 0.85rem;cookies = st.session_state.cookies
-
-        font-weight: 600;
-
-        margin-bottom: 1rem;# Only use cookies if they're available and ready
-
-    }cookies_ready = cookies is not None and cookies.ready() if st.session_state.get("cookies_enabled", False) else False
+    }    page_icon="🌟",
 
     .mode-all-in {
 
-        background-color: #4CAF50;# ---------------------------
+        background-color: #4CAF50;# Page configuration    initial_sidebar_state="expanded"
 
-        color: white;# User Session Tracking for Langfuse
+        color: white;
 
-    }# ---------------------------
+    }st.set_page_config()
 
-    .mode-chat-rag {from datetime import datetime
+    .mode-chat-rag {
 
-        background-color: #2196F3;import platform
+        background-color: #2196F3;    page_title="Lumiere - AI Knowledge Workspace",
 
-        color: white;import json
+        color: white;
 
-    }import requests
+    }    page_icon="💡",# ---------------------------
 
     .mode-data-analyst {
 
-        background-color: #FF9800;# Helper function to get geographic data from IP
+        background-color: #FF9800;    layout="wide",# Cookie Manager for Persistent User ID
 
-        color: white;def get_geo_data():
+        color: white;
 
-    }    """Get geographic data based on IP address"""
+    }    initial_sidebar_state="expanded"# ---------------------------
 
-</style>    try:
+</style>
 
-""", unsafe_allow_html=True)        # Using ipapi.co for geolocation (free tier)
+""", unsafe_allow_html=True))# Initialize cookie manager only once per session
 
-        response = requests.get('https://ipapi.co/json/', timeout=2)
 
-# ============================================        if response.status_code == 200:
 
-# SESSION STATE INITIALIZATION            data = response.json()
+# ============================================if "cookies" not in st.session_state:
 
-# ============================================            return {
+# SESSION STATE INITIALIZATION
 
-def initialize_session_state():                "country": data.get("country_name", "Unknown"),
+# ============================================# Custom CSS for better UI    try:
 
-    """Initialize all session state variables"""                "country_code": data.get("country_code", "Unknown"),
+def initialize_session_state():
 
-                    "city": data.get("city", "Unknown"),
+    """Initialize all session state variables"""st.markdown("""        st.session_state.cookies = EncryptedCookieManager(
 
-    # Generate session ID (new for each browser session)                "region": data.get("region", "Unknown"),
+    
 
-    if "session_id" not in st.session_state:                "timezone": data.get("timezone", "Unknown"),
+    # Generate session ID (new for each browser session)<style>            prefix="lumiere_app_",
 
-        st.session_state.session_id = str(uuid.uuid4())                "ip": data.get("ip", "Unknown")
+    if "session_id" not in st.session_state:
 
-                }
+        st.session_state.session_id = str(uuid.uuid4())    .stAlert {            password=os.environ.get("COOKIE_PASSWORD", "lumiere_secret_key_change_in_production_2024")
 
-    # User ID will be set after user enters name    except Exception as e:
+    
 
-    if "user_id" not in st.session_state:        print(f"Geo lookup failed: {e}")
-
-        st.session_state.user_id = None    return {
-
-            "country": "Unknown",
-
-    # User name input        "country_code": "Unknown", 
-
-    if "user_name" not in st.session_state:        "city": "Unknown",
-
-        st.session_state.user_name = ""        "region": "Unknown",
-
-            "timezone": "Unknown",
-
-    # Chat messages        "ip": "Unknown"
-
-    if "messages" not in st.session_state:    }
-
-        st.session_state.messages = []
-
-    # ---------------------------
-
-    # Lumiere mode# Persistent User Identity (Cookie-Based or Session-Based)
-
-    if "lumiere_mode" not in st.session_state:# ---------------------------
-
-        st.session_state.lumiere_mode = "all_in"# Get or create persistent user_id from cookie (if available) or use session-based ID
+    # User ID will be set after user enters name        padding: 0.5rem;        )
 
     if "user_id" not in st.session_state:
 
-    # Workflow visibility toggle    cookies_need_save = False
+        st.session_state.user_id = None        margin: 0.5rem 0;        st.session_state.cookies_enabled = True
 
-    if "show_workflow" not in st.session_state:    
+    
 
-        st.session_state.show_workflow = False    if cookies_ready:
+    # User name input    }    except Exception as e:
 
-            # Cookies are available - use persistent ID
+    if "user_name" not in st.session_state:
 
-    # Graph instance (built once per session)        if "persistent_user_id" not in cookies or not cookies.get("persistent_user_id"):
+        st.session_state.user_name = ""    .mode-badge {        print(f"Cookie manager initialization failed: {e}")
 
-    if "graph" not in st.session_state:            # First-time visitor: Create new permanent ID
+    
 
-        st.session_state.graph = build_graph()            new_user_id = str(uuid.uuid4())
+    # Chat messages        display: inline-block;        st.session_state.cookies = None
 
-            cookies["persistent_user_id"] = new_user_id
+    if "messages" not in st.session_state:
 
-# ============================================            cookies["first_visit"] = datetime.now().isoformat()
+        st.session_state.messages = []        padding: 0.25rem 0.75rem;        st.session_state.cookies_enabled = False
 
-# SIDEBAR RENDERING            cookies["session_count"] = "1"
+    
 
-# ============================================            persistent_user_id = new_user_id
+    # Lumiere mode        border-radius: 1rem;
 
-def render_sidebar():            is_new_user = True
+    if "lumiere_mode" not in st.session_state:
 
-    """Render the sidebar with user info, mode selection, and document stats"""            cookies_need_save = True
+        st.session_state.lumiere_mode = "all_in"        font-size: 0.85rem;cookies = st.session_state.cookies
 
-            else:
+    
 
-    with st.sidebar:            # Returning visitor: Use existing ID from cookie
+    # Workflow visibility toggle        font-weight: 600;
 
-        st.title("💡 Lumiere")            persistent_user_id = cookies["persistent_user_id"]
+    if "show_workflow" not in st.session_state:
 
-        st.caption("AI Knowledge Workspace")            is_new_user = False
+        st.session_state.show_workflow = False        margin-bottom: 1rem;# Only use cookies if they're available and ready
 
-            else:
+    
 
-        st.divider()        # Cookies not available - use session-based ID (temporary)
+    # Graph instance (built once per session)    }cookies_ready = cookies is not None and cookies.ready() if st.session_state.get("cookies_enabled", False) else False
 
-                persistent_user_id = str(uuid.uuid4())
+    if "graph" not in st.session_state:
 
-        # ===== USER IDENTIFICATION =====        is_new_user = True
+        st.session_state.graph = build_graph()    .mode-all-in {
 
-        st.subheader("👤 User Identity")        print("Warning: Cookies not available, using session-based user ID")
 
-            
 
-        user_name = st.text_input(    # Store persistent user_id in session_state (this is what your app uses)
+# ============================================        background-color: #4CAF50;# ---------------------------
 
-            "Enter your name/ID:",    st.session_state.user_id = persistent_user_id
+# SIDEBAR RENDERING
 
-            value=st.session_state.user_name,    st.session_state.is_new_user = is_new_user
+# ============================================        color: white;# User Session Tracking for Langfuse
 
-            placeholder="e.g., john_doe",    st.session_state.cookies_need_save = cookies_need_save
+def render_sidebar():
 
-            help="Your data is stored per user. Use the same name to access your documents.",else:
+    """Render the sidebar with user info, mode selection, and document stats"""    }# ---------------------------
 
-            key="user_name_input"    # User ID already in session state
+    
 
-        )    persistent_user_id = st.session_state.user_id
+    with st.sidebar:    .mode-chat-rag {from datetime import datetime
 
-            is_new_user = st.session_state.get("is_new_user", False)
+        st.title("💡 Lumiere")
+
+        st.caption("AI Knowledge Workspace")        background-color: #2196F3;import platform
+
+        
+
+        st.divider()        color: white;import json
+
+        
+
+        # ===== USER IDENTIFICATION =====    }import requests
+
+        st.subheader("👤 User Identity")
+
+            .mode-data-analyst {
+
+        user_name = st.text_input(
+
+            "Enter your name/ID:",        background-color: #FF9800;# Helper function to get geographic data from IP
+
+            value=st.session_state.user_name,
+
+            placeholder="e.g., john_doe",        color: white;def get_geo_data():
+
+            help="Your data is stored per user. Use the same name to access your documents.",
+
+            key="user_name_input"    }    """Get geographic data based on IP address"""
+
+        )
+
+        </style>    try:
 
         if user_name and user_name != st.session_state.user_name:
 
-            # Generate consistent user_id from name# ---------------------------
+            # Generate consistent user_id from name""", unsafe_allow_html=True)        # Using ipapi.co for geolocation (free tier)
 
-            st.session_state.user_name = user_name# Session Tracking (Analytics - New Each Refresh)
+            st.session_state.user_name = user_name
 
-            st.session_state.user_id = hashlib.md5(user_name.encode()).hexdigest()[:16]# ---------------------------
+            st.session_state.user_id = hashlib.md5(user_name.encode()).hexdigest()[:16]        response = requests.get('https://ipapi.co/json/', timeout=2)
 
-            st.success(f"✅ Logged in as: {user_name}")# Initialize session tracking
+            st.success(f"✅ Logged in as: {user_name}")
 
-            st.rerun()if "session_id" not in st.session_state:
+            st.rerun()# ============================================        if response.status_code == 200:
 
-            # Generate new session ID for this page load (for analytics)
+        
 
-        if st.session_state.user_id:    st.session_state.session_id = str(uuid.uuid4())
+        if st.session_state.user_id:# SESSION STATE INITIALIZATION            data = response.json()
 
-            st.info(f"**User:** {st.session_state.user_name}\n\n**ID:** `{st.session_state.user_id[:8]}...`")    st.session_state.session_start = datetime.now()
+            st.info(f"**User:** {st.session_state.user_name}\n\n**ID:** `{st.session_state.user_id[:8]}...`")
 
-        else:    st.session_state.session_start_iso = datetime.now().isoformat()
+        else:# ============================================            return {
 
-            st.warning("⚠️ Please enter your name to start using Lumiere.")    
+            st.warning("⚠️ Please enter your name to start using Lumiere.")
 
-            st.stop()    # Track session count for this user (only for returning users with cookies)
+            st.stop()def initialize_session_state():                "country": data.get("country_name", "Unknown"),
 
-            if cookies_ready and not is_new_user:
+        
 
-        st.divider()        session_count = int(cookies.get("session_count", "0")) + 1
+        st.divider()    """Initialize all session state variables"""                "country_code": data.get("country_code", "Unknown"),
 
-                cookies["session_count"] = str(session_count)
+        
 
-        # ===== MODE SELECTION =====        st.session_state.cookies_need_save = True
+        # ===== MODE SELECTION =====                    "city": data.get("city", "Unknown"),
 
-        st.subheader("🎯 Lumiere Mode")    
+        st.subheader("🎯 Lumiere Mode")
 
-            # Get geographic data
+            # Generate session ID (new for each browser session)                "region": data.get("region", "Unknown"),
 
-        mode_options = {    geo_data = get_geo_data()
+        mode_options = {
 
-            "all_in": "🌐 All-In Mode",    
+            "all_in": "🌐 All-In Mode",    if "session_id" not in st.session_state:                "timezone": data.get("timezone", "Unknown"),
 
-            "chat_rag": "📚 Docs & Chat Mode",    # Initialize feature usage tracking
+            "chat_rag": "📚 Docs & Chat Mode",
 
-            "data_analyst": "📊 Data Analytics Mode"    st.session_state.feature_usage = {
+            "data_analyst": "📊 Data Analytics Mode"        st.session_state.session_id = str(uuid.uuid4())                "ip": data.get("ip", "Unknown")
 
-        }        "rag_queries": 0,
+        }
 
-                "sql_queries": 0,
+                        }
 
-        lumiere_mode = st.radio(        "visualizations": 0,
+        lumiere_mode = st.radio(
 
-            "Select mode:",        "documents_uploaded": 0,
+            "Select mode:",    # User ID will be set after user enters name    except Exception as e:
 
-            options=list(mode_options.keys()),        "tables_uploaded": 0,
+            options=list(mode_options.keys()),
 
-            format_func=lambda x: mode_options[x],        "feedbacks_given": 0
+            format_func=lambda x: mode_options[x],    if "user_id" not in st.session_state:        print(f"Geo lookup failed: {e}")
 
-            index=list(mode_options.keys()).index(st.session_state.lumiere_mode),    }
+            index=list(mode_options.keys()).index(st.session_state.lumiere_mode),
 
-            key="mode_selector"    
+            key="mode_selector"        st.session_state.user_id = None    return {
 
-        )    # Initialize error tracking
+        )
 
-            st.session_state.error_tracking = {
+                    "country": "Unknown",
 
-        if lumiere_mode != st.session_state.lumiere_mode:        "total_errors": 0,
+        if lumiere_mode != st.session_state.lumiere_mode:
 
-            st.session_state.lumiere_mode = lumiere_mode        "error_types": {},
+            st.session_state.lumiere_mode = lumiere_mode    # User name input        "country_code": "Unknown", 
 
-            st.rerun()        "last_error": None
+            st.rerun()
 
-            }
+            if "user_name" not in st.session_state:        "city": "Unknown",
 
-        # Mode descriptions    
+        # Mode descriptions
 
-        mode_descriptions = {    # Capture user metadata
+        mode_descriptions = {        st.session_state.user_name = ""        "region": "Unknown",
 
-            "all_in": "Full AI capabilities: RAG, SQL, general knowledge, and visualizations.",    st.session_state.user_metadata = {
+            "all_in": "Full AI capabilities: RAG, SQL, general knowledge, and visualizations.",
 
-            "chat_rag": "Chat about your uploaded documents only. No SQL or general knowledge.",        "first_visit": datetime.now().isoformat(),
+            "chat_rag": "Chat about your uploaded documents only. No SQL or general knowledge.",            "timezone": "Unknown",
 
-            "data_analyst": "Query CSV data with SQL and automatic visualizations. No general chat."        "user_agent": st.context.headers.get("User-Agent", "Unknown") if hasattr(st, 'context') and hasattr(st.context, 'headers') else "Unknown",
+            "data_analyst": "Query CSV data with SQL and automatic visualizations. No general chat."
 
-        }        "platform": platform.system(),
+        }    # Chat messages        "ip": "Unknown"
 
-                "session_count": 1,
+        
 
-        st.caption(f"ℹ️ {mode_descriptions[lumiere_mode]}")        "country": geo_data["country"],
+        st.caption(f"ℹ️ {mode_descriptions[lumiere_mode]}")    if "messages" not in st.session_state:    }
 
-                "country_code": geo_data["country_code"],
+        
 
-        st.divider()        "city": geo_data["city"],
+        st.divider()        st.session_state.messages = []
 
-                "region": geo_data["region"],
+        
 
-        # ===== WORKFLOW TOGGLE =====        "timezone": geo_data["timezone"],
+        # ===== WORKFLOW TOGGLE =====    # ---------------------------
 
-        st.subheader("⚙️ Settings")        "ip": geo_data["ip"]
+        st.subheader("⚙️ Settings")
 
-            }
+            # Lumiere mode# Persistent User Identity (Cookie-Based or Session-Based)
 
         show_workflow = st.checkbox(
 
-            "🔄 Show Agent Workflow",# Always initialize tracking dicts if not exist
+            "🔄 Show Agent Workflow",    if "lumiere_mode" not in st.session_state:# ---------------------------
 
-            value=st.session_state.show_workflow,if "feature_usage" not in st.session_state:
+            value=st.session_state.show_workflow,
 
-            help="Display agent execution steps in real-time"    st.session_state.feature_usage = {
+            help="Display agent execution steps in real-time"        st.session_state.lumiere_mode = "all_in"# Get or create persistent user_id from cookie (if available) or use session-based ID
 
-        )        "rag_queries": 0,
+        )
 
-                "sql_queries": 0,
+            if "user_id" not in st.session_state:
 
-        if show_workflow != st.session_state.show_workflow:        "visualizations": 0,
+        if show_workflow != st.session_state.show_workflow:
 
-            st.session_state.show_workflow = show_workflow        "documents_uploaded": 0,
+            st.session_state.show_workflow = show_workflow    # Workflow visibility toggle    cookies_need_save = False
 
-                "tables_uploaded": 0,
+        
 
-        st.divider()        "feedbacks_given": 0
+        st.divider()    if "show_workflow" not in st.session_state:    
 
-            }
+        
 
-        # ===== QUICK UPLOAD =====
+        # ===== QUICK UPLOAD =====        st.session_state.show_workflow = False    if cookies_ready:
 
-        st.subheader("📤 Quick Upload")if "error_tracking" not in st.session_state:
+        st.subheader("📤 Quick Upload")
 
-            st.session_state.error_tracking = {
+                    # Cookies are available - use persistent ID
 
-        with st.expander("Upload PDF", expanded=False):        "total_errors": 0,
+        with st.expander("Upload PDF", expanded=False):
 
-            uploaded_pdf = st.file_uploader(        "error_types": {},
+            uploaded_pdf = st.file_uploader(    # Graph instance (built once per session)        if "persistent_user_id" not in cookies or not cookies.get("persistent_user_id"):
 
-                "Choose a PDF file",        "last_error": None
+                "Choose a PDF file",
 
-                type=['pdf'],    }
+                type=['pdf'],    if "graph" not in st.session_state:            # First-time visitor: Create new permanent ID
 
                 key="quick_pdf_upload",
 
-                help="Upload a PDF to add to your knowledge base"# Calculate session duration
+                help="Upload a PDF to add to your knowledge base"        st.session_state.graph = build_graph()            new_user_id = str(uuid.uuid4())
 
-            )session_duration_seconds = (datetime.now() - st.session_state.session_start).total_seconds()
+            )
 
-            session_duration_minutes = round(session_duration_seconds / 60, 2)
+                        cookies["persistent_user_id"] = new_user_id
 
             if uploaded_pdf:
 
-                if st.button("📄 Process PDF", key="process_pdf_btn"):# Store user_id and metadata in environment for Langfuse tracking
+                if st.button("📄 Process PDF", key="process_pdf_btn"):# ============================================            cookies["first_visit"] = datetime.now().isoformat()
 
-                    with st.spinner("Processing PDF..."):os.environ["LANGFUSE_USER_ID"] = st.session_state.user_id
+                    with st.spinner("Processing PDF..."):
 
-                        result = process_and_store_pdf(
+                        result = process_and_store_pdf(# SIDEBAR RENDERING            cookies["session_count"] = "1"
 
-                            file=uploaded_pdf,# Store comprehensive metadata as JSON for Langfuse
+                            file=uploaded_pdf,
 
-                            filename=uploaded_pdf.name,if "user_metadata" in st.session_state:
+                            filename=uploaded_pdf.name,# ============================================            persistent_user_id = new_user_id
 
-                            user_id=st.session_state.user_id    comprehensive_metadata = {
+                            user_id=st.session_state.user_id
 
-                        )        **st.session_state.user_metadata,
+                        )def render_sidebar():            is_new_user = True
 
-                                "session_duration_minutes": session_duration_minutes,
+                        
 
-                        if result["success"]:        "feature_usage": st.session_state.feature_usage,
+                        if result["success"]:    """Render the sidebar with user info, mode selection, and document stats"""            cookies_need_save = True
 
-                            st.success(f"✅ Stored {result['chunks_stored']} chunks!")        "error_tracking": {
+                            st.success(f"✅ Stored {result['chunks_stored']} chunks!")
 
-                            st.rerun()            "total_errors": st.session_state.error_tracking["total_errors"],
+                            st.rerun()            else:
 
-                        else:            "error_types": list(st.session_state.error_tracking["error_types"].keys())
+                        else:
 
-                            st.error(f"❌ Error: {result['error']}")        }
+                            st.error(f"❌ Error: {result['error']}")    with st.sidebar:            # Returning visitor: Use existing ID from cookie
 
-            }
+        
 
-        with st.expander("Upload CSV", expanded=False):    os.environ["LANGFUSE_USER_METADATA"] = json.dumps(comprehensive_metadata)
+        with st.expander("Upload CSV", expanded=False):        st.title("💡 Lumiere")            persistent_user_id = cookies["persistent_user_id"]
 
             uploaded_csv = st.file_uploader(
 
-                "Choose a CSV file",# ---------------------------
+                "Choose a CSV file",        st.caption("AI Knowledge Workspace")            is_new_user = False
 
-                type=['csv'],# Apple-like Custom CSS
+                type=['csv'],
 
-                key="quick_csv_upload",# ---------------------------
+                key="quick_csv_upload",            else:
 
-                help="Upload a CSV to store in database"st.markdown("""
+                help="Upload a CSV to store in database"
 
-            )<style>
-
-                /* Apple-inspired color palette and typography */
-
-            if uploaded_csv:    :root {
-
-                table_name = st.text_input(        --apple-blue: #007AFF;
-
-                    "Table name:",        --apple-green: #34C759;
-
-                    value=sanitize_table_name(uploaded_csv.name),        --apple-gray: #86868B;
-
-                    key="quick_csv_table_name"        --apple-dark: #1D1D1F;
-
-                )        --apple-bg: #F5F5F7;
-
-                    }
-
-                if st.button("📊 Store CSV", key="process_csv_btn"):    
-
-                    with st.spinner("Processing CSV..."):    /* Main container styling */
-
-                        result = process_and_store_csv(    .main {
-
-                            file=uploaded_csv,        background-color: var(--apple-bg);
-
-                            filename=uploaded_csv.name,    }
-
-                            table_name=table_name,    
-
-                            if_exists='fail',    /* Header styling */
-
-                            user_id=st.session_state.user_id    h1 {
-
-                        )        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-
-                                font-weight: 600;
-
-                        if result["success"]:        color: var(--apple-dark);
-
-                            st.success(f"✅ Stored {result['rows']} rows!")        letter-spacing: -0.5px;
-
-                            st.rerun()    }
-
-                        else:    
-
-                            st.error(f"❌ Error: {result['error']}")    /* Subtitle styling */
-
-            .subtitle {
-
-        st.caption("💡 For full document management, visit the [📚 Documents](/Documents) page.")        color: var(--apple-gray);
-
-                font-size: 1.1rem;
-
-        st.divider()        font-weight: 400;
-
-                margin-top: -1rem;
-
-        # ===== DOCUMENT STATS =====        margin-bottom: 2rem;
-
-        st.subheader("📊 Your Data")    }
+            )        st.divider()        # Cookies not available - use session-based ID (temporary)
 
             
 
-        # Get document count    /* Feature badges */
+            if uploaded_csv:                persistent_user_id = str(uuid.uuid4())
 
-        try:    .feature-badge {
+                table_name = st.text_input(
 
-            documents = list_uploaded_documents(user_id=st.session_state.user_id)        display: inline-block;
+                    "Table name:",        # ===== USER IDENTIFICATION =====        is_new_user = True
 
-            doc_count = len(documents)        padding: 0.3rem 0.8rem;
+                    value=sanitize_table_name(uploaded_csv.name),
 
-        except Exception:        margin: 0.2rem;
+                    key="quick_csv_table_name"        st.subheader("👤 User Identity")        print("Warning: Cookies not available, using session-based user ID")
 
-            doc_count = 0        background: linear-gradient(135deg, var(--apple-blue) 0%, #0051D5 100%);
+                )
 
-            documents = []        color: white;
+                            
 
-                border-radius: 12px;
+                if st.button("📊 Store CSV", key="process_csv_btn"):
 
-        # Get table count        font-size: 0.85rem;
+                    with st.spinner("Processing CSV..."):        user_name = st.text_input(    # Store persistent user_id in session_state (this is what your app uses)
 
-        try:        font-weight: 500;
+                        result = process_and_store_csv(
 
-            tables = list_all_tables(user_id=st.session_state.user_id)        box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+                            file=uploaded_csv,            "Enter your name/ID:",    st.session_state.user_id = persistent_user_id
 
-            table_count = len(tables)    }
+                            filename=uploaded_csv.name,
 
-        except Exception:    
+                            table_name=table_name,            value=st.session_state.user_name,    st.session_state.is_new_user = is_new_user
 
-            table_count = 0    /* Cards with shadow */
+                            if_exists='fail',
 
-            tables = []    .card {
+                            user_id=st.session_state.user_id            placeholder="e.g., john_doe",    st.session_state.cookies_need_save = cookies_need_save
 
-                background: white;
+                        )
 
-        col1, col2 = st.columns(2)        border-radius: 12px;
+                                    help="Your data is stored per user. Use the same name to access your documents.",else:
 
-        with col1:        padding: 1.5rem;
+                        if result["success"]:
 
-            st.metric("📄 Documents", doc_count)        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+                            st.success(f"✅ Stored {result['rows']} rows!")            key="user_name_input"    # User ID already in session state
 
-        with col2:        margin: 1rem 0;
+                            st.rerun()
 
-            st.metric("📊 Tables", table_count)    }
+                        else:        )    persistent_user_id = st.session_state.user_id
+
+                            st.error(f"❌ Error: {result['error']}")
+
+                    is_new_user = st.session_state.get("is_new_user", False)
+
+        st.caption("💡 For full document management, visit the [📚 Documents](/Documents) page.")
+
+                if user_name and user_name != st.session_state.user_name:
+
+        st.divider()
+
+                    # Generate consistent user_id from name# ---------------------------
+
+        # ===== DOCUMENT STATS =====
+
+        st.subheader("📊 Your Data")            st.session_state.user_name = user_name# Session Tracking (Analytics - New Each Refresh)
+
+        
+
+        # Get document count            st.session_state.user_id = hashlib.md5(user_name.encode()).hexdigest()[:16]# ---------------------------
+
+        try:
+
+            documents = list_uploaded_documents(user_id=st.session_state.user_id)            st.success(f"✅ Logged in as: {user_name}")# Initialize session tracking
+
+            doc_count = len(documents)
+
+        except Exception:            st.rerun()if "session_id" not in st.session_state:
+
+            doc_count = 0
+
+            documents = []            # Generate new session ID for this page load (for analytics)
+
+        
+
+        # Get table count        if st.session_state.user_id:    st.session_state.session_id = str(uuid.uuid4())
+
+        try:
+
+            tables = list_all_tables(user_id=st.session_state.user_id)            st.info(f"**User:** {st.session_state.user_name}\n\n**ID:** `{st.session_state.user_id[:8]}...`")    st.session_state.session_start = datetime.now()
+
+            table_count = len(tables)
+
+        except Exception:        else:    st.session_state.session_start_iso = datetime.now().isoformat()
+
+            table_count = 0
+
+            tables = []            st.warning("⚠️ Please enter your name to start using Lumiere.")    
+
+        
+
+        col1, col2 = st.columns(2)            st.stop()    # Track session count for this user (only for returning users with cookies)
+
+        with col1:
+
+            st.metric("📄 Documents", doc_count)            if cookies_ready and not is_new_user:
+
+        with col2:
+
+            st.metric("📊 Tables", table_count)        st.divider()        session_count = int(cookies.get("session_count", "0")) + 1
+
+        
+
+        # Show document list                cookies["session_count"] = str(session_count)
+
+        if doc_count > 0:
+
+            with st.expander(f"📄 Documents ({doc_count})", expanded=False):        # ===== MODE SELECTION =====        st.session_state.cookies_need_save = True
+
+                for doc in documents[:5]:
+
+                    st.caption(f"• {doc['filename'][:30]}{'...' if len(doc['filename']) > 30 else ''}")        st.subheader("🎯 Lumiere Mode")    
+
+                if doc_count > 5:
+
+                    st.caption(f"... and {doc_count - 5} more")            # Get geographic data
+
+        
+
+        # Show table list        mode_options = {    geo_data = get_geo_data()
+
+        if table_count > 0:
+
+            with st.expander(f"📊 Tables ({table_count})", expanded=False):            "all_in": "🌐 All-In Mode",    
+
+                for table in tables[:5]:
+
+                    st.caption(f"• {table['table_name']}")            "chat_rag": "📚 Docs & Chat Mode",    # Initialize feature usage tracking
+
+                if table_count > 5:
+
+                    st.caption(f"... and {table_count - 5} more")            "data_analyst": "📊 Data Analytics Mode"    st.session_state.feature_usage = {
+
+        
+
+        st.divider()        }        "rag_queries": 0,
+
+        
+
+        # ===== SESSION STATS =====                "sql_queries": 0,
+
+        st.subheader("📈 Session Stats")
+
+                lumiere_mode = st.radio(        "visualizations": 0,
+
+        col1, col2 = st.columns(2)
+
+        with col1:            "Select mode:",        "documents_uploaded": 0,
+
+            st.metric("💬 Messages", len(st.session_state.messages))
+
+        with col2:            options=list(mode_options.keys()),        "tables_uploaded": 0,
+
+            # Count memory items
+
+            try:            format_func=lambda x: mode_options[x],        "feedbacks_given": 0
+
+                memory_items = get_session_memory(st.session_state.session_id)
+
+                memory_count = len([m for m in memory_items if m["type"] != "conversation"])            index=list(mode_options.keys()).index(st.session_state.lumiere_mode),    }
+
+            except Exception:
+
+                memory_count = 0            key="mode_selector"    
+
+            st.metric("🧠 Memories", memory_count)
+
+                )    # Initialize error tracking
+
+        st.divider()
+
+                    st.session_state.error_tracking = {
+
+        # ===== ACTIONS =====
+
+        st.subheader("🔧 Actions")        if lumiere_mode != st.session_state.lumiere_mode:        "total_errors": 0,
+
+        
+
+        if st.button("🗑️ Clear Chat History", use_container_width=True):            st.session_state.lumiere_mode = lumiere_mode        "error_types": {},
+
+            st.session_state.messages = []
+
+            clear_session_memory(st.session_state.session_id)            st.rerun()        "last_error": None
+
+            st.success("Chat cleared!")
+
+            st.rerun()            }
+
+        
+
+        if st.button("🔄 New Session", use_container_width=True):        # Mode descriptions    
+
+            # Generate new session ID but keep user_id
+
+            st.session_state.session_id = str(uuid.uuid4())        mode_descriptions = {    # Capture user metadata
+
+            st.session_state.messages = []
+
+            st.success("New session started!")            "all_in": "Full AI capabilities: RAG, SQL, general knowledge, and visualizations.",    st.session_state.user_metadata = {
+
+            st.rerun()
+
+                    "chat_rag": "Chat about your uploaded documents only. No SQL or general knowledge.",        "first_visit": datetime.now().isoformat(),
+
+        st.divider()
+
+                    "data_analyst": "Query CSV data with SQL and automatic visualizations. No general chat."        "user_agent": st.context.headers.get("User-Agent", "Unknown") if hasattr(st, 'context') and hasattr(st.context, 'headers') else "Unknown",
+
+        # ===== FOOTER =====
+
+        st.caption("🔍 **Observability:** Langfuse enabled")        }        "platform": platform.system(),
+
+        st.caption(f"🆔 **Session:** `{st.session_state.session_id[:8]}...`")
+
+                "session_count": 1,
+
+# ============================================
+
+# VISUALIZATION RENDERING        st.caption(f"ℹ️ {mode_descriptions[lumiere_mode]}")        "country": geo_data["country"],
+
+# ============================================
+
+def render_visualization(viz_config: dict, sql_results: dict):                "country_code": geo_data["country_code"],
+
+    """Render chart based on visualization configuration"""
+
+            st.divider()        "city": geo_data["city"],
+
+    if not viz_config or not sql_results:
+
+        return                "region": geo_data["region"],
+
+    
+
+    chart_type = viz_config.get("chart_type")        # ===== WORKFLOW TOGGLE =====        "timezone": geo_data["timezone"],
+
+    x_column = viz_config.get("x_column")
+
+    y_column = viz_config.get("y_column")        st.subheader("⚙️ Settings")        "ip": geo_data["ip"]
+
+    title = viz_config.get("title", "Data Visualization")
+
+                }
+
+    data = sql_results.get("data", [])
+
+            show_workflow = st.checkbox(
+
+    if not data or not chart_type:
+
+        return            "🔄 Show Agent Workflow",# Always initialize tracking dicts if not exist
+
+    
+
+    try:            value=st.session_state.show_workflow,if "feature_usage" not in st.session_state:
+
+        # Convert data to dict format for Plotly
+
+        if hasattr(data[0], 'keys'):            help="Display agent execution steps in real-time"    st.session_state.feature_usage = {
+
+            # Row objects
+
+            data_dict = {col: [row[col] for row in data] for col in data[0].keys()}        )        "rag_queries": 0,
+
+        elif isinstance(data[0], dict):
+
+            # Already dicts                "sql_queries": 0,
+
+            data_dict = {col: [row[col] for row in data] for col in data[0].keys()}
+
+        else:        if show_workflow != st.session_state.show_workflow:        "visualizations": 0,
+
+            st.warning("Cannot render visualization: unsupported data format")
+
+            return            st.session_state.show_workflow = show_workflow        "documents_uploaded": 0,
+
+        
+
+        # Create appropriate chart                "tables_uploaded": 0,
+
+        if chart_type == "bar":
+
+            fig = go.Figure(data=[        st.divider()        "feedbacks_given": 0
+
+                go.Bar(x=data_dict.get(x_column, []), y=data_dict.get(y_column, []))
+
+            ])            }
+
+            fig.update_layout(
+
+                title=title,        # ===== QUICK UPLOAD =====
+
+                xaxis_title=x_column,
+
+                yaxis_title=y_column,        st.subheader("📤 Quick Upload")if "error_tracking" not in st.session_state:
+
+                template="plotly_white"
+
+            )            st.session_state.error_tracking = {
+
+            st.plotly_chart(fig, use_container_width=True)
+
+                with st.expander("Upload PDF", expanded=False):        "total_errors": 0,
+
+        elif chart_type == "line":
+
+            fig = go.Figure(data=[            uploaded_pdf = st.file_uploader(        "error_types": {},
+
+                go.Scatter(x=data_dict.get(x_column, []), y=data_dict.get(y_column, []), mode='lines+markers')
+
+            ])                "Choose a PDF file",        "last_error": None
+
+            fig.update_layout(
+
+                title=title,                type=['pdf'],    }
+
+                xaxis_title=x_column,
+
+                yaxis_title=y_column,                key="quick_pdf_upload",
+
+                template="plotly_white"
+
+            )                help="Upload a PDF to add to your knowledge base"# Calculate session duration
+
+            st.plotly_chart(fig, use_container_width=True)
+
+                    )session_duration_seconds = (datetime.now() - st.session_state.session_start).total_seconds()
+
+        elif chart_type == "pie":
+
+            fig = go.Figure(data=[            session_duration_minutes = round(session_duration_seconds / 60, 2)
+
+                go.Pie(labels=data_dict.get(x_column, []), values=data_dict.get(y_column, []))
+
+            ])            if uploaded_pdf:
+
+            fig.update_layout(title=title, template="plotly_white")
+
+            st.plotly_chart(fig, use_container_width=True)                if st.button("📄 Process PDF", key="process_pdf_btn"):# Store user_id and metadata in environment for Langfuse tracking
+
+        
+
+        elif chart_type == "scatter":                    with st.spinner("Processing PDF..."):os.environ["LANGFUSE_USER_ID"] = st.session_state.user_id
+
+            fig = go.Figure(data=[
+
+                go.Scatter(x=data_dict.get(x_column, []), y=data_dict.get(y_column, []), mode='markers')                        result = process_and_store_pdf(
+
+            ])
+
+            fig.update_layout(                            file=uploaded_pdf,# Store comprehensive metadata as JSON for Langfuse
+
+                title=title,
+
+                xaxis_title=x_column,                            filename=uploaded_pdf.name,if "user_metadata" in st.session_state:
+
+                yaxis_title=y_column,
+
+                template="plotly_white"                            user_id=st.session_state.user_id    comprehensive_metadata = {
+
+            )
+
+            st.plotly_chart(fig, use_container_width=True)                        )        **st.session_state.user_metadata,
+
+        
+
+        elif chart_type == "histogram":                                "session_duration_minutes": session_duration_minutes,
+
+            fig = go.Figure(data=[
+
+                go.Histogram(x=data_dict.get(x_column, []))                        if result["success"]:        "feature_usage": st.session_state.feature_usage,
+
+            ])
+
+            fig.update_layout(                            st.success(f"✅ Stored {result['chunks_stored']} chunks!")        "error_tracking": {
+
+                title=title,
+
+                xaxis_title=x_column,                            st.rerun()            "total_errors": st.session_state.error_tracking["total_errors"],
+
+                yaxis_title="Count",
+
+                template="plotly_white"                        else:            "error_types": list(st.session_state.error_tracking["error_types"].keys())
+
+            )
+
+            st.plotly_chart(fig, use_container_width=True)                            st.error(f"❌ Error: {result['error']}")        }
+
+        
+
+        elif chart_type == "table":            }
+
+            # Just show the data as table
+
+            import pandas as pd        with st.expander("Upload CSV", expanded=False):    os.environ["LANGFUSE_USER_METADATA"] = json.dumps(comprehensive_metadata)
+
+            df = pd.DataFrame(data_dict)
+
+            st.dataframe(df, use_container_width=True)            uploaded_csv = st.file_uploader(
+
+        
+
+        else:                "Choose a CSV file",# ---------------------------
+
+            st.info(f"Chart type '{chart_type}' not supported yet.")
+
+                    type=['csv'],# Apple-like Custom CSS
+
+    except Exception as e:
+
+        st.error(f"Error rendering visualization: {e}")                key="quick_csv_upload",# ---------------------------
+
+
+
+# ============================================                help="Upload a CSV to store in database"st.markdown("""
+
+# GRAPH INVOCATION
+
+# ============================================            )<style>
+
+def invoke_graph(user_message: str):
+
+    """Invoke the LangGraph workflow with proper state management"""                /* Apple-inspired color palette and typography */
+
+    
+
+    # Create Langfuse trace            if uploaded_csv:    :root {
+
+    trace = langfuse.trace(
+
+        name="lumiere_chat",                table_name = st.text_input(        --apple-blue: #007AFF;
+
+        user_id=st.session_state.user_id,
+
+        session_id=st.session_state.session_id,                    "Table name:",        --apple-green: #34C759;
+
+        input={"message": user_message, "mode": st.session_state.lumiere_mode},
+
+        metadata={                    value=sanitize_table_name(uploaded_csv.name),        --apple-gray: #86868B;
+
+            "lumiere_mode": st.session_state.lumiere_mode,
+
+            "message_count": len(st.session_state.messages),                    key="quick_csv_table_name"        --apple-dark: #1D1D1F;
+
+            "timestamp": datetime.now().isoformat()
+
+        }                )        --apple-bg: #F5F5F7;
+
+    )
+
+                        }
+
+    try:
+
+        # Build initial state                if st.button("📊 Store CSV", key="process_csv_btn"):    
+
+        initial_state: AgentState = {
+
+            "messages": [user_message],                    with st.spinner("Processing CSV..."):    /* Main container styling */
+
+            "session_id": st.session_state.session_id,
+
+            "user_id": st.session_state.user_id,                        result = process_and_store_csv(    .main {
+
+            "lumiere_mode": st.session_state.lumiere_mode,
+
+            "question": user_message,                            file=uploaded_csv,        background-color: var(--apple-bg);
+
+            "user_input": user_message,
+
+            "intent": None,                            filename=uploaded_csv.name,    }
+
+            "needs_rag": False,
+
+            "needs_sql": False,                            table_name=table_name,    
+
+            "retrieved_docs": [],
+
+            "sql_query": None,                            if_exists='fail',    /* Header styling */
+
+            "sql_results": None,
+
+            "visualization_config": None,                            user_id=st.session_state.user_id    h1 {
+
+            "answer": None,
+
+            "retry_count": 0,                        )        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+            "decision": None,
+
+            "reasoning_mode": None,                                font-weight: 600;
+
+            "memory_signal": None,
+
+        }                        if result["success"]:        color: var(--apple-dark);
+
+        
+
+        # Invoke graph with workflow display                            st.success(f"✅ Stored {result['rows']} rows!")        letter-spacing: -0.5px;
+
+        if st.session_state.show_workflow:
+
+            with st.status("🤖 Processing your request...", expanded=True) as status:                            st.rerun()    }
+
+                st.write("🎯 Classifying intent...")
+
+                                        else:    
+
+                # Stream graph execution
+
+                final_state = None                            st.error(f"❌ Error: {result['error']}")    /* Subtitle styling */
+
+                for state in st.session_state.graph.stream(initial_state):
+
+                    # Update status based on state            .subtitle {
+
+                    if "intent" in state and state.get("intent"):
+
+                        intent = state.get("intent")        st.caption("💡 For full document management, visit the [📚 Documents](/Documents) page.")        color: var(--apple-gray);
+
+                        st.write(f"📋 Intent detected: **{intent}**")
+
+                                    font-size: 1.1rem;
+
+                    if state.get("needs_rag"):
+
+                        st.write("📚 Retrieving documents...")        st.divider()        font-weight: 400;
+
+                    
+
+                    if state.get("needs_sql"):                margin-top: -1rem;
+
+                        st.write("🗄️ Executing SQL query...")
+
+                            # ===== DOCUMENT STATS =====        margin-bottom: 2rem;
+
+                    if state.get("retrieved_docs"):
+
+                        doc_count = len(state.get("retrieved_docs", []))        st.subheader("📊 Your Data")    }
+
+                        st.write(f"📄 Retrieved {doc_count} documents")
+
+                                
+
+                    if state.get("sql_results"):
+
+                        sql_success = state.get("sql_results", {}).get("success", False)        # Get document count    /* Feature badges */
+
+                        if sql_success:
+
+                            row_count = state.get("sql_results", {}).get("row_count", 0)        try:    .feature-badge {
+
+                            st.write(f"✅ SQL query returned {row_count} rows")
+
+                        else:            documents = list_uploaded_documents(user_id=st.session_state.user_id)        display: inline-block;
+
+                            st.write("❌ SQL query failed")
+
+                                doc_count = len(documents)        padding: 0.3rem 0.8rem;
+
+                    if state.get("answer"):
+
+                        st.write("💭 Generating response...")        except Exception:        margin: 0.2rem;
+
+                    
+
+                    if state.get("visualization_config"):            doc_count = 0        background: linear-gradient(135deg, var(--apple-blue) 0%, #0051D5 100%);
+
+                        st.write("📊 Creating visualization...")
+
+                                documents = []        color: white;
+
+                    final_state = state
+
+                                border-radius: 12px;
+
+                status.update(label="✅ Processing complete!", state="complete")
+
+        else:        # Get table count        font-size: 0.85rem;
+
+            # Execute without workflow display
+
+            final_state = None        try:        font-weight: 500;
+
+            for state in st.session_state.graph.stream(initial_state):
+
+                final_state = state            tables = list_all_tables(user_id=st.session_state.user_id)        box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+
+        
+
+        # Extract answer and metadata            table_count = len(tables)    }
+
+        answer = final_state.get("answer", "I couldn't generate a response.")
+
+        sql_results = final_state.get("sql_results")        except Exception:    
+
+        visualization_config = final_state.get("visualization_config")
+
+        memory_signal = final_state.get("memory_signal")            table_count = 0    /* Cards with shadow */
+
+        
+
+        # Store conversation in session memory            tables = []    .card {
+
+        append_session_memory(
+
+            st.session_state.session_id,                background: white;
+
+            {
+
+                "type": "conversation",        col1, col2 = st.columns(2)        border-radius: 12px;
+
+                "content": f"User: {user_message}",
+
+                "turn": len(st.session_state.messages) // 2        with col1:        padding: 1.5rem;
+
+            }
+
+        )            st.metric("📄 Documents", doc_count)        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+
+        
+
+        append_session_memory(        with col2:        margin: 1rem 0;
+
+            st.session_state.session_id,
+
+            {            st.metric("📊 Tables", table_count)    }
+
+                "type": "conversation",
+
+                "content": f"Assistant: {answer}",            
+
+                "turn": len(st.session_state.messages) // 2
+
+            }        # Show document list    /* Sidebar styling */
+
+        )
+
+                if doc_count > 0:    section[data-testid="stSidebar"] {
+
+        # Store memory signal if detected
+
+        if memory_signal:            with st.expander(f"📄 Documents ({doc_count})", expanded=False):        background-color: #E8E8E8 !important;
+
+            append_session_memory(
+
+                st.session_state.session_id,                for doc in documents[:5]:        border-right: 1px solid #D1D1D6;
+
+                memory_signal
+
+            )                    st.caption(f"• {doc['filename'][:30]}{'...' if len(doc['filename']) > 30 else ''}")    }
 
             
 
-        # Show document list    /* Sidebar styling */
+            # Also store in semantic memory for long-term recall                if doc_count > 5:    
 
-        if doc_count > 0:    section[data-testid="stSidebar"] {
+            try:
 
-            with st.expander(f"📄 Documents ({doc_count})", expanded=False):        background-color: #E8E8E8 !important;
+                store_memory(                    st.caption(f"... and {doc_count - 5} more")    /* Sidebar text - all black */
 
-                for doc in documents[:5]:        border-right: 1px solid #D1D1D6;
+                    content=memory_signal["content"],
 
-                    st.caption(f"• {doc['filename'][:30]}{'...' if len(doc['filename']) > 30 else ''}")    }
+                    memory_type=memory_signal["type"],            section[data-testid="stSidebar"] .stMarkdown,
 
-                if doc_count > 5:    
+                    user_id=st.session_state.user_id,
 
-                    st.caption(f"... and {doc_count - 5} more")    /* Sidebar text - all black */
+                    session_id=st.session_state.session_id,        # Show table list    section[data-testid="stSidebar"] .stMarkdown p,
 
-            section[data-testid="stSidebar"] .stMarkdown,
+                    metadata={
 
-        # Show table list    section[data-testid="stSidebar"] .stMarkdown p,
+                        "timestamp": datetime.now().isoformat(),        if table_count > 0:    section[data-testid="stSidebar"] .stMarkdown h1,
 
-        if table_count > 0:    section[data-testid="stSidebar"] .stMarkdown h1,
+                        "lumiere_mode": st.session_state.lumiere_mode
 
-            with st.expander(f"📊 Tables ({table_count})", expanded=False):    section[data-testid="stSidebar"] .stMarkdown h2,
+                    }            with st.expander(f"📊 Tables ({table_count})", expanded=False):    section[data-testid="stSidebar"] .stMarkdown h2,
 
-                for table in tables[:5]:    section[data-testid="stSidebar"] .stMarkdown h3,
+                )
 
-                    st.caption(f"• {table['table_name']}")    section[data-testid="stSidebar"] .stMarkdown strong,
+            except Exception as e:                for table in tables[:5]:    section[data-testid="stSidebar"] .stMarkdown h3,
 
-                if table_count > 5:    section[data-testid="stSidebar"] label,
+                print(f"Warning: Failed to store semantic memory: {e}")
 
-                    st.caption(f"... and {table_count - 5} more")    section[data-testid="stSidebar"] p,
+                            st.caption(f"• {table['table_name']}")    section[data-testid="stSidebar"] .stMarkdown strong,
 
-            section[data-testid="stSidebar"] h1,
+        # Update trace
 
-        st.divider()    section[data-testid="stSidebar"] h2,
+        trace.update(                if table_count > 5:    section[data-testid="stSidebar"] label,
 
-            section[data-testid="stSidebar"] h3,
+            output={
 
-        # ===== SESSION STATS =====    section[data-testid="stSidebar"] span,
+                "answer": answer,                    st.caption(f"... and {table_count - 5} more")    section[data-testid="stSidebar"] p,
 
-        st.subheader("📈 Session Stats")    section[data-testid="stSidebar"] div {
+                "has_sql": bool(sql_results),
 
-                color: #000000 !important;
+                "has_visualization": bool(visualization_config),            section[data-testid="stSidebar"] h1,
 
-        col1, col2 = st.columns(2)    }
+                "memory_signal": memory_signal
 
-        with col1:    
+            }        st.divider()    section[data-testid="stSidebar"] h2,
 
-            st.metric("💬 Messages", len(st.session_state.messages))    /* Sidebar checkbox labels */
+        )
 
-        with col2:    section[data-testid="stSidebar"] .stCheckbox label {
+                    section[data-testid="stSidebar"] h3,
 
-            # Count memory items        color: #000000 !important;
+        return {
 
-            try:    }
+            "answer": answer,        # ===== SESSION STATS =====    section[data-testid="stSidebar"] span,
+
+            "sql_results": sql_results,
+
+            "visualization_config": visualization_config        st.subheader("📈 Session Stats")    section[data-testid="stSidebar"] div {
+
+        }
+
+                    color: #000000 !important;
+
+    except Exception as e:
+
+        trace.update(        col1, col2 = st.columns(2)    }
+
+            output={"error": str(e)},
+
+            level="ERROR"        with col1:    
+
+        )
+
+        st.error(f"❌ Error processing request: {e}")            st.metric("💬 Messages", len(st.session_state.messages))    /* Sidebar checkbox labels */
+
+        return {
+
+            "answer": f"I encountered an error: {str(e)}",        with col2:    section[data-testid="stSidebar"] .stCheckbox label {
+
+            "sql_results": None,
+
+            "visualization_config": None            # Count memory items        color: #000000 !important;
+
+        }
+
+    finally:            try:    }
+
+        trace.end()
 
                 memory_items = get_session_memory(st.session_state.session_id)    
 
-                memory_count = len([m for m in memory_items if m["type"] != "conversation"])    /* Sidebar selectbox */
+# ============================================
 
-            except Exception:    section[data-testid="stSidebar"] .stSelectbox label,
+# MAIN CHAT INTERFACE                memory_count = len([m for m in memory_items if m["type"] != "conversation"])    /* Sidebar selectbox */
 
-                memory_count = 0    section[data-testid="stSidebar"] .stSelectbox div {
+# ============================================
 
-            st.metric("🧠 Memories", memory_count)        color: #000000 !important;
+def render_chat_interface():            except Exception:    section[data-testid="stSidebar"] .stSelectbox label,
 
-            }
+    """Render the main chat interface"""
 
-        st.divider()    
+                    memory_count = 0    section[data-testid="stSidebar"] .stSelectbox div {
 
-            /* Sidebar caption text */
+    # Show mode badge
 
-        # ===== ACTIONS =====    section[data-testid="stSidebar"] .stCaption {
+    mode_classes = {            st.metric("🧠 Memories", memory_count)        color: #000000 !important;
 
-        st.subheader("🔧 Actions")        color: #000000 !important;
+        "all_in": "mode-all-in",
 
-            }
+        "chat_rag": "mode-chat-rag",            }
 
-        if st.button("🗑️ Clear Chat History", use_container_width=True):    
+        "data_analyst": "mode-data-analyst"
 
-            st.session_state.messages = []    /* Sidebar button text */
+    }        st.divider()    
 
-            clear_session_memory(st.session_state.session_id)    section[data-testid="stSidebar"] button {
+    
 
-            st.success("Chat cleared!")        color: #000000 !important;
+    mode_names = {            /* Sidebar caption text */
 
-            st.rerun()    }
+        "all_in": "🌐 All-In Mode",
+
+        "chat_rag": "📚 Docs & Chat Mode",        # ===== ACTIONS =====    section[data-testid="stSidebar"] .stCaption {
+
+        "data_analyst": "📊 Data Analytics Mode"
+
+    }        st.subheader("🔧 Actions")        color: #000000 !important;
+
+    
+
+    st.markdown(            }
+
+        f'<div class="mode-badge {mode_classes[st.session_state.lumiere_mode]}">'
+
+        f'{mode_names[st.session_state.lumiere_mode]}'        if st.button("🗑️ Clear Chat History", use_container_width=True):    
+
+        f'</div>',
+
+        unsafe_allow_html=True            st.session_state.messages = []    /* Sidebar button text */
+
+    )
+
+                clear_session_memory(st.session_state.session_id)    section[data-testid="stSidebar"] button {
+
+    # Welcome message for new users
+
+    if len(st.session_state.messages) == 0:            st.success("Chat cleared!")        color: #000000 !important;
+
+        st.info(f"""
+
+        👋 **Welcome to Lumiere!**            st.rerun()    }
+
+        
+
+        **Getting Started:**            
+
+        1. ✅ You're logged in as **{st.session_state.user_name}**
+
+        2. 📁 Upload documents in the sidebar or visit the [📚 Documents](/Documents) page        if st.button("🔄 New Session", use_container_width=True):    /* Sidebar metrics */
+
+        3. 💬 Start chatting below!
+
+                    # Generate new session ID but keep user_id    section[data-testid="stSidebar"] [data-testid="stMetric"] {
+
+        **Current Mode:** {mode_names[st.session_state.lumiere_mode]}
+
+        - {({            st.session_state.session_id = str(uuid.uuid4())        background: transparent;
+
+            "all_in": "Full AI capabilities: RAG, SQL, general knowledge, and visualizations.",
+
+            "chat_rag": "Chat about your uploaded documents only.",            st.session_state.messages = []        color: #000000 !important;
+
+            "data_analyst": "Query CSV data with SQL and automatic visualizations."
+
+        })[st.session_state.lumiere_mode]}            st.success("New session started!")    }
+
+        
+
+        **Tips:**            st.rerun()    
+
+        - Upload PDFs to ask questions about your documents
+
+        - Upload CSVs to query data with natural language            section[data-testid="stSidebar"] [data-testid="stMetricLabel"] {
+
+        - Switch modes in the sidebar for different capabilities
+
+        """)        st.divider()        color: #000000 !important;
+
+    
+
+    # Display chat messages            }
+
+    for message in st.session_state.messages:
+
+        with st.chat_message(message["role"]):        # ===== FOOTER =====    
+
+            st.markdown(message["content"])
+
+                    st.caption("🔍 **Observability:** Langfuse enabled")    section[data-testid="stSidebar"] [data-testid="stMetricValue"] {
+
+            # Show visualization if present
+
+            if message["role"] == "assistant" and "visualization" in message:        st.caption(f"🆔 **Session:** `{st.session_state.session_id[:8]}...`")        color: #000000 !important;
+
+                render_visualization(
+
+                    message["visualization"],    }
+
+                    message.get("sql_results")
+
+                )# ============================================    
+
+    
+
+    # Chat input# VISUALIZATION RENDERING    /* Button styling */
+
+    if prompt := st.chat_input("Ask me anything..."):
+
+        # Add user message to chat# ============================================    .stButton > button {
+
+        st.session_state.messages.append({"role": "user", "content": prompt})
+
+        def render_visualization(viz_config: dict, sql_results: dict):        border-radius: 10px;
+
+        with st.chat_message("user"):
+
+            st.markdown(prompt)    """Render chart based on visualization configuration"""        font-weight: 500;
+
+        
+
+        # Generate response            transition: all 0.2s ease;
+
+        with st.chat_message("assistant"):
+
+            response = invoke_graph(prompt)    if not viz_config or not sql_results:        border: none;
 
             
 
-        if st.button("🔄 New Session", use_container_width=True):    /* Sidebar metrics */
+            # Display answer        return        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 
-            # Generate new session ID but keep user_id    section[data-testid="stSidebar"] [data-testid="stMetric"] {
+            st.markdown(response["answer"])
 
-            st.session_state.session_id = str(uuid.uuid4())        background: transparent;
+                    }
 
-            st.session_state.messages = []        color: #000000 !important;
+            # Display visualization if present
 
-            st.success("New session started!")    }
+            if response["visualization_config"] and st.session_state.lumiere_mode == "data_analyst":    chart_type = viz_config.get("chart_type")    
 
-            st.rerun()    
+                render_visualization(
 
-            section[data-testid="stSidebar"] [data-testid="stMetricLabel"] {
+                    response["visualization_config"],    x_column = viz_config.get("x_column")    .stButton > button:hover {
 
-        st.divider()        color: #000000 !important;
+                    response["sql_results"]
 
-            }
+                )    y_column = viz_config.get("y_column")        transform: translateY(-1px);
 
-        # ===== FOOTER =====    
+        
 
-        st.caption("🔍 **Observability:** Langfuse enabled")    section[data-testid="stSidebar"] [data-testid="stMetricValue"] {
+        # Add assistant message to chat    title = viz_config.get("title", "Data Visualization")        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 
-        st.caption(f"🆔 **Session:** `{st.session_state.session_id[:8]}...`")        color: #000000 !important;
+        assistant_message = {
 
-    }
+            "role": "assistant",        }
 
-# ============================================    
+            "content": response["answer"]
 
-# VISUALIZATION RENDERING    /* Button styling */
+        }    data = sql_results.get("data", [])    
 
-# ============================================    .stButton > button {
+        
 
-def render_visualization(viz_config: dict, sql_results: dict):        border-radius: 10px;
+        if response["visualization_config"]:        /* Metrics styling */
 
-    """Render chart based on visualization configuration"""        font-weight: 500;
+            assistant_message["visualization"] = response["visualization_config"]
 
-            transition: all 0.2s ease;
+            assistant_message["sql_results"] = response["sql_results"]    if not data or not chart_type:    [data-testid="stMetric"] {
 
-    if not viz_config or not sql_results:        border: none;
+        
 
-        return        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        st.session_state.messages.append(assistant_message)        return        background: white;
 
-        }
+        
 
-    chart_type = viz_config.get("chart_type")    
+        st.rerun()            padding: 1rem;
 
-    x_column = viz_config.get("x_column")    .stButton > button:hover {
 
-    y_column = viz_config.get("y_column")        transform: translateY(-1px);
 
-    title = viz_config.get("title", "Data Visualization")        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+# ============================================    try:        border-radius: 10px;
 
-        }
+# MAIN APPLICATION
 
-    data = sql_results.get("data", [])    
+# ============================================        # Convert data to dict format for Plotly        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 
-        /* Metrics styling */
+def main():
 
-    if not data or not chart_type:    [data-testid="stMetric"] {
+    """Main application entry point"""        if hasattr(data[0], 'keys'):    }
 
-        return        background: white;
+    
 
-            padding: 1rem;
+    # Initialize session state            # Row objects    
 
-    try:        border-radius: 10px;
+    initialize_session_state()
 
-        # Convert data to dict format for Plotly        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+                data_dict = {col: [row[col] for row in data] for col in data[0].keys()}    /* Clean expander */
 
-        if hasattr(data[0], 'keys'):    }
+    # Render sidebar
 
-            # Row objects    
+    render_sidebar()        elif isinstance(data[0], dict):    .streamlit-expanderHeader {
 
-            data_dict = {col: [row[col] for row in data] for col in data[0].keys()}    /* Clean expander */
+    
 
-        elif isinstance(data[0], dict):    .streamlit-expanderHeader {
+    # Main content area            # Already dicts        background-color: white;
 
-            # Already dicts        background-color: white;
+    st.title("💡 Lumiere")
 
-            data_dict = {col: [row[col] for row in data] for col in data[0].keys()}        border-radius: 8px;
+    st.caption("AI Knowledge Workspace - Multi-Agent RAG System")            data_dict = {col: [row[col] for row in data] for col in data[0].keys()}        border-radius: 8px;
 
-        else:        font-weight: 500;
+    
+
+    # Render chat interface        else:        font-weight: 500;
+
+    render_chat_interface()
 
             st.warning("Cannot render visualization: unsupported data format")    }
 
-            return    
+if __name__ == "__main__":
+
+    main()            return    
+
 
             /* Hide Streamlit branding */
 
