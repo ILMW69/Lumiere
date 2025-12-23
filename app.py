@@ -465,9 +465,22 @@ def invoke_graph(user_message: str):
             with st.status("🤖 Processing your request...", expanded=True) as status:
                 st.write("🎯 Classifying intent...")
                 
-                # Stream graph execution
+                # Stream graph execution with thread metadata
                 final_state = None
-                for output in st.session_state.graph.stream(initial_state):
+                for output in st.session_state.graph.stream(
+                    initial_state,
+                    config={
+                        "configurable": {
+                            "thread_id": st.session_state.session_id,
+                        },
+                        "metadata": {
+                            "user_id": st.session_state.user_id,
+                            "user_name": st.session_state.user_name,
+                            "lumiere_mode": st.session_state.lumiere_mode,
+                            "session_id": st.session_state.session_id
+                        }
+                    }
+                ):
                     # Each output is a dict with node name as key
                     for node_name, node_output in output.items():
                         # Update status based on node output
@@ -505,8 +518,21 @@ def invoke_graph(user_message: str):
                 
                 status.update(label="✅ Processing complete!", state="complete")
         else:
-            # Execute without workflow display - use invoke for final state
-            final_state = st.session_state.graph.invoke(initial_state)
+            # Execute without workflow display - use invoke for final state with thread metadata
+            final_state = st.session_state.graph.invoke(
+                initial_state,
+                config={
+                    "configurable": {
+                        "thread_id": st.session_state.session_id,
+                    },
+                    "metadata": {
+                        "user_id": st.session_state.user_id,
+                        "user_name": st.session_state.user_name,
+                        "lumiere_mode": st.session_state.lumiere_mode,
+                        "session_id": st.session_state.session_id
+                    }
+                }
+            )
         
         # Extract answer and metadata
         answer = final_state.get("answer", "I couldn't generate a response.")
