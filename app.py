@@ -12,6 +12,7 @@ import time
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from streamlit_cookies_manager import EncryptedCookieManager
 
 from graph.rag_graph import build_graph
 from memory.session_memory import get_session_memory, append_session_memory
@@ -23,6 +24,19 @@ st.set_page_config(
     page_icon="🌟",
     initial_sidebar_state="expanded"
 )
+
+# ---------------------------
+# Cookie Manager for Persistent User ID
+# ---------------------------
+# Initialize cookie manager
+cookies = EncryptedCookieManager(
+    prefix="lumiere_app_",
+    password=os.environ.get("COOKIE_PASSWORD", "lumiere_secret_key_change_in_production_2024")
+)
+
+# Wait for cookies to be ready (required)
+if not cookies.ready():
+    st.stop()
 
 # ---------------------------
 # User Session Tracking for Langfuse
@@ -59,11 +73,39 @@ def get_geo_data():
         "ip": "Unknown"
     }
 
+# ---------------------------
+# Persistent User Identity (Cookie-Based)
+# ---------------------------
+# Get or create persistent user_id from cookie
+if "persistent_user_id" not in cookies or not cookies.get("persistent_user_id"):
+    # First-time visitor: Create new permanent ID
+    new_user_id = str(uuid.uuid4())
+    cookies["persistent_user_id"] = new_user_id
+    cookies.save()
+    persistent_user_id = new_user_id
+    is_new_user = True
+else:
+    # Returning visitor: Use existing ID from cookie
+    persistent_user_id = cookies["persistent_user_id"]
+    is_new_user = False
+
+# Store persistent user_id in session_state (this is what your app uses)
+st.session_state.user_id = persistent_user_id
+
+# ---------------------------
+# Session Tracking (Analytics - New Each Refresh)
+# ---------------------------
 # Initialize session tracking
-if "user_id" not in st.session_state:
-    st.session_state.user_id = str(uuid.uuid4())
+if "session_id" not in st.session_state:
+    # Generate new session ID for this page load (for analytics)
+    st.session_state.session_id = str(uuid.uuid4())
     st.session_state.session_start = datetime.now()
     st.session_state.session_start_iso = datetime.now().isoformat()
+    
+    # Track session count for this user
+    session_count = int(cookies.get("session_count", "0")) + 1
+    cookies["session_count"] = str(session_count)
+    cookies.save()
     
     # Get geographic data
     geo_data = get_geo_data()
@@ -98,34 +140,29 @@ if "user_id" not in st.session_state:
         "timezone": geo_data["timezone"],
         "ip": geo_data["ip"]
     }
-else:
-    # Update session start for duration tracking
-    if "session_start" not in st.session_state:
-        st.session_state.session_start = datetime.now()
-        st.session_state.session_start_iso = datetime.now().isoformat()
     
-    # Initialize tracking dicts if not exist
-    if "feature_usage" not in st.session_state:
-        st.session_state.feature_usage = {
-            "rag_queries": 0,
-            "sql_queries": 0,
-            "visualizations": 0,
-            "documents_uploaded": 0,
-            "tables_uploaded": 0,
-            "feedbacks_given": 0
-        }
-    
-    if "error_tracking" not in st.session_state:
-        st.session_state.error_tracking = {
-            "total_errors": 0,
-            "error_types": {},
-            "last_error": None
-        }
-    
-    # Increment session count for returning users
-    if "user_metadata" in st.session_state:
-        st.session_state.user_metadata["session_count"] = st.session_state.user_metadata.get("session_count", 0) + 1
-        st.session_state.user_metadata["last_visit"] = datetime.now().isoformat()
+    # Store first visit in cookie for returning users
+    if is_new_user:
+        cookies["first_visit"] = datetime.now().isoformat()
+        cookies.save()
+
+# Always initialize tracking dicts if not exist
+if "feature_usage" not in st.session_state:
+    st.session_state.feature_usage = {
+        "rag_queries": 0,
+        "sql_queries": 0,
+        "visualizations": 0,
+        "documents_uploaded": 0,
+        "tables_uploaded": 0,
+        "feedbacks_given": 0
+    }
+
+if "error_tracking" not in st.session_state:
+    st.session_state.error_tracking = {
+        "total_errors": 0,
+        "error_types": {},
+        "last_error": None
+    }
 
 # Calculate session duration
 session_duration_seconds = (datetime.now() - st.session_state.session_start).total_seconds()
@@ -736,14 +773,18 @@ with st.sidebar:
     with st.expander("🔍 Session Analytics", expanded=False):
         # Basic Info
         st.markdown("### 👤 User Info")
-        st.caption("**User ID:**")
+        st.caption("**Persistent User ID:** 🍪")
         st.code(st.session_state.user_id[:16] + "...", language=None)
+        if is_new_user:
+            st.success("✨ New user - Welcome!")
+        else:
+            st.info("👋 Returning user - Data restored from cookie")
         
         # Session Stats
         st.markdown("### 📊 Session Stats")
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Session Count", st.session_state.user_metadata.get("session_count", 1))
+            st.metric("Session Count", int(cookies.get("session_count", "1")))
             st.metric("Duration", f"{session_duration_minutes} min")
         with col2:
             st.metric("Total Errors", st.session_state.error_tracking["total_errors"])
