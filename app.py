@@ -474,10 +474,10 @@ def invoke_graph(user_message: str):
                             "thread_id": st.session_state.session_id,
                         },
                         "metadata": {
+                            "thread_id": st.session_state.session_id,
                             "user_id": st.session_state.user_id,
                             "user_name": st.session_state.user_name,
-                            "lumiere_mode": st.session_state.lumiere_mode,
-                            "session_id": st.session_state.session_id
+                            "lumiere_mode": st.session_state.lumiere_mode
                         }
                     }
                 ):
@@ -526,10 +526,10 @@ def invoke_graph(user_message: str):
                         "thread_id": st.session_state.session_id,
                     },
                     "metadata": {
+                        "thread_id": st.session_state.session_id,
                         "user_id": st.session_state.user_id,
                         "user_name": st.session_state.user_name,
-                        "lumiere_mode": st.session_state.lumiere_mode,
-                        "session_id": st.session_state.session_id
+                        "lumiere_mode": st.session_state.lumiere_mode
                     }
                 }
             )
