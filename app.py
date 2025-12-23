@@ -28,11 +28,15 @@ st.set_page_config(
 # ---------------------------
 # Cookie Manager for Persistent User ID
 # ---------------------------
-# Initialize cookie manager
-cookies = EncryptedCookieManager(
-    prefix="lumiere_app_",
-    password=os.environ.get("COOKIE_PASSWORD", "lumiere_secret_key_change_in_production_2024")
-)
+# Initialize cookie manager only once
+if "cookies_initialized" not in st.session_state:
+    st.session_state.cookies_initialized = True
+    st.session_state.cookies = EncryptedCookieManager(
+        prefix="lumiere_app_",
+        password=os.environ.get("COOKIE_PASSWORD", "lumiere_secret_key_change_in_production_2024")
+    )
+
+cookies = st.session_state.cookies
 
 # Wait for cookies to be ready (required)
 if not cookies.ready():
@@ -77,20 +81,31 @@ def get_geo_data():
 # Persistent User Identity (Cookie-Based)
 # ---------------------------
 # Get or create persistent user_id from cookie
-if "persistent_user_id" not in cookies or not cookies.get("persistent_user_id"):
-    # First-time visitor: Create new permanent ID
-    new_user_id = str(uuid.uuid4())
-    cookies["persistent_user_id"] = new_user_id
-    cookies.save()
-    persistent_user_id = new_user_id
-    is_new_user = True
+if "user_id" not in st.session_state:
+    cookies_need_save = False
+    
+    if "persistent_user_id" not in cookies or not cookies.get("persistent_user_id"):
+        # First-time visitor: Create new permanent ID
+        new_user_id = str(uuid.uuid4())
+        cookies["persistent_user_id"] = new_user_id
+        cookies["first_visit"] = datetime.now().isoformat()
+        cookies["session_count"] = "1"
+        persistent_user_id = new_user_id
+        is_new_user = True
+        cookies_need_save = True
+    else:
+        # Returning visitor: Use existing ID from cookie
+        persistent_user_id = cookies["persistent_user_id"]
+        is_new_user = False
+    
+    # Store persistent user_id in session_state (this is what your app uses)
+    st.session_state.user_id = persistent_user_id
+    st.session_state.is_new_user = is_new_user
+    st.session_state.cookies_need_save = cookies_need_save
 else:
-    # Returning visitor: Use existing ID from cookie
-    persistent_user_id = cookies["persistent_user_id"]
-    is_new_user = False
-
-# Store persistent user_id in session_state (this is what your app uses)
-st.session_state.user_id = persistent_user_id
+    # User ID already in session state
+    persistent_user_id = st.session_state.user_id
+    is_new_user = st.session_state.get("is_new_user", False)
 
 # ---------------------------
 # Session Tracking (Analytics - New Each Refresh)
@@ -102,10 +117,11 @@ if "session_id" not in st.session_state:
     st.session_state.session_start = datetime.now()
     st.session_state.session_start_iso = datetime.now().isoformat()
     
-    # Track session count for this user
-    session_count = int(cookies.get("session_count", "0")) + 1
-    cookies["session_count"] = str(session_count)
-    cookies.save()
+    # Track session count for this user (only for returning users)
+    if not is_new_user:
+        session_count = int(cookies.get("session_count", "0")) + 1
+        cookies["session_count"] = str(session_count)
+        st.session_state.cookies_need_save = True
     
     # Get geographic data
     geo_data = get_geo_data()
@@ -140,11 +156,11 @@ if "session_id" not in st.session_state:
         "timezone": geo_data["timezone"],
         "ip": geo_data["ip"]
     }
-    
-    # Store first visit in cookie for returning users
-    if is_new_user:
-        cookies["first_visit"] = datetime.now().isoformat()
-        cookies.save()
+
+# Save cookies only once if needed
+if st.session_state.get("cookies_need_save", False):
+    cookies.save()
+    st.session_state.cookies_need_save = False
 
 # Always initialize tracking dicts if not exist
 if "feature_usage" not in st.session_state:
