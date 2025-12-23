@@ -94,7 +94,7 @@ with tab1:
                     
                     with col_b:
                         if st.button("🗑️ Delete", key=f"del_{doc['doc_id']}"):
-                            result = delete_document(doc['doc_id'])
+                            result = delete_document(doc['doc_id'], user_id=user_id)
                             if result["success"]:
                                 st.success("Deleted!")
                                 st.rerun()

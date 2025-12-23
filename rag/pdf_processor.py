@@ -233,18 +233,22 @@ def list_uploaded_documents(user_id: str, limit: int = 100) -> list[dict]:
         return []
 
 
-def delete_document(doc_id: str) -> dict:
+def delete_document(doc_id: str, user_id: str = "default_user") -> dict:
     """
     Delete all chunks of a document from Qdrant.
     
     Args:
         doc_id: Document ID to delete
+        user_id: User identifier for collection isolation
     
     Returns:
         dict with deletion status
     """
     try:
         client = get_client()
+        
+        # Get user-specific collection name
+        collection_name = get_user_collection_name(user_id, "documents")
         
         # First, scroll through the collection to find all points with matching doc_id
         points_to_delete = []
@@ -253,7 +257,7 @@ def delete_document(doc_id: str) -> dict:
         offset = None
         while True:
             result = client.scroll(
-                collection_name=DOCUMENT_COLLECTION_NAME,
+                collection_name=collection_name,
                 limit=100,
                 offset=offset,
                 with_payload=True,
@@ -275,7 +279,7 @@ def delete_document(doc_id: str) -> dict:
         # Delete the points by their IDs
         if points_to_delete:
             client.delete(
-                collection_name=DOCUMENT_COLLECTION_NAME,
+                collection_name=collection_name,
                 points_selector=points_to_delete
             )
             
