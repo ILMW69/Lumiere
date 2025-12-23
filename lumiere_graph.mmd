@@ -1,0 +1,45 @@
+graph TD
+    START([START]) --> intent[Intent Node<br/>Classify query & route]
+    
+    %% Intent routing
+    intent -->|needs_sql=True| sql_execute[SQL Execute<br/>Generate & run SQL]
+    intent -->|needs_rag=True| retrieve[Retrieve<br/>Vector search + rerank]
+    intent -->|neither| general_reason[General Reason<br/>LLM fallback]
+    
+    %% SQL path
+    sql_execute -->|success| sql_reason[SQL Reason<br/>Interpret results]
+    sql_execute -->|fail| general_reason
+    
+    %% Visualization branch
+    sql_reason -->|data_analyst mode + data| visualize[Visualize<br/>Create Plotly chart]
+    sql_reason -->|other modes| critic[Critic<br/>Evaluate quality]
+    
+    %% RAG path
+    retrieve -->|docs found| reason[Reason<br/>RAG-based answer]
+    retrieve -->|no docs| general_reason
+    
+    %% All paths converge to critic
+    visualize --> critic
+    reason --> critic
+    general_reason --> critic
+    
+    %% Critic routing
+    critic -->|RETRY & count<1| reason
+    critic -->|ACCEPT| memory_write[Memory Write<br/>Store session + semantic]
+    critic -->|max retries| memory_write
+    
+    %% End
+    memory_write --> END([END])
+    
+    %% Styling
+    classDef entryExit fill:#e1f5ff,stroke:#01579b,stroke-width:3px
+    classDef routing fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef reasoning fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef data fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef memory fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    
+    class START,END entryExit
+    class intent routing
+    class reason,general_reason,sql_reason reasoning
+    class sql_execute,retrieve,visualize data
+    class critic,memory_write memory

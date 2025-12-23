@@ -1,64 +1,83 @@
 # 🌟 Lumiere — Agentic RAG Knowledge Workspace
 
-> An intelligent multi-agent system combining RAG, SQL data analysis, and semantic memory for context-aware interactions
+> An intelligent multi-agent system combining RAG, SQL data analysis, and semantic memory for context-aware interactions with complete observability
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-FF4B4B.svg)](https://streamlit.io/)
-[![Qdrant](https://img.shields.io/badge/Qdrant-Vector_DB-6C5CE7.svg)](https://qdrant.tech/)
+[![Qdrant](https://img.shields.io/badge/Qdrant-Cloud-6C5CE7.svg)](https://qdrant.tech/)
 [![LangChain](https://img.shields.io/badge/LangChain-🦜-00A67E.svg)](https://www.langchain.com/)
+[![LangSmith](https://img.shields.io/badge/LangSmith-Observability-FF6B6B.svg)](https://smith.langchain.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-![Lumiere Architecture](docs/graph_visualization.png)
+![Lumiere Architecture](lumiere_graph.png)
 
 ---
 
 ## 🎯 Project Vision
 
-**Lumiere is an open-source, agentic RAG knowledge workspace that uses multi-agent reasoning, long- and short-term memory, and Qdrant-backed retrieval, with full observability via Langfuse.**
+**Lumiere is an open-source, agentic RAG knowledge workspace that uses multi-agent reasoning, long- and short-term memory, Qdrant Cloud for vector storage, and complete observability via LangSmith.**
 
 Lumiere transforms traditional Q&A systems into an **intelligent assistant that learns and adapts** through semantic memory, supporting multiple interaction modes:
-- 📚 **RAG Mode**: Document-grounded responses with semantic search
+- 📚 **RAG Mode**: Document-grounded responses with semantic search + reranking
 - 📊 **Data Analyst Mode**: SQL queries with automated visualizations
 - 💬 **General Chat**: Conversational AI with context awareness
 - 🧠 **Semantic Memory**: Long-term learning from past interactions
+- 👤 **User Isolation**: Complete data separation per user
 
 ---
 
 ## ✨ Key Features
 
-### 🤖 Multi-Agent Architecture
-- **Intent Agent**: Classifies queries and retrieves relevant memories
-- **Reasoning Agent**: Generates grounded answers from retrieved context
-- **SQL Agent**: Executes database queries and interprets results
-- **Critic Agent**: Validates answer quality before storage
-- **Visualization Agent**: Creates data visualizations (Data Analyst mode)
+### 🤖 9-Node Multi-Agent Architecture
+- **Intent Node**: Classifies queries, retrieves memories, and routes intelligently
+- **Retrieve Node**: Vector search with CrossEncoder reranking
+- **Reason Node**: Generates grounded RAG answers
+- **General Reason Node**: Fallback for general knowledge
+- **SQL Execute Node**: Generates and runs database queries
+- **SQL Reason Node**: Interprets SQL results
+- **Visualize Node**: Creates data visualizations (data_analyst mode)
+- **Critic Node**: Validates answer quality before storage
+- **Memory Write Node**: Stores conversations in semantic memory
 
 ### 🧠 Semantic Memory System
-- **Long-term memory** stored in Qdrant vector database
+- **Long-term memory** stored in Qdrant Cloud vector database
 - **Automatic learning** from successful interactions
 - **Context-aware responses** using past conversations
-- **Quality filtering** via critic agent
+- **Quality filtering** via critic node (only ACCEPT decisions stored)
 - **Cross-session continuity** for personalized experiences
+- **User-specific collections** for complete data isolation
 
 ### 📊 Data Analysis & Visualization
 - **Natural language to SQL** query generation
-- **Automated chart creation** (bar, line, pie, scatter)
+- **Automated chart creation** (bar, line, pie, scatter, table)
 - **Interactive visualizations** with Plotly
-- **Multi-table support** with SQLite backend
+- **Multi-table support** with user-specific SQLite databases
+- **User isolation** - each user has separate database file
 
 ### 🔍 Advanced RAG
 - **Hybrid chunking** with semantic overlap
-- **Vector similarity search** using OpenAI embeddings
+- **Vector similarity search** with OpenAI text-embedding-3-small
+- **CrossEncoder reranking** (ms-marco-MiniLM-L-6-v2)
 - **Metadata filtering** for precise retrieval
 - **Source attribution** for transparency
 - **Pronoun resolution** for conversational context
+- **User-specific document collections** in Qdrant Cloud
 
-### 📈 Observability
-- **Langfuse integration** for trace analysis
+### 📈 Complete Observability with LangSmith
+- **Automatic tracing** for all LangChain/LangGraph operations
+- **Zero manual instrumentation** required
+- **Full trace replay** for debugging
+- **Performance metrics** (latency, tokens, costs)
+- **Session tracking** via user_id/session_id
+- **Error monitoring** and alerting
 - **Token usage tracking** per operation
-- **Performance metrics** for all agents
-- **Debug logging** with emoji indicators
-- **Memory statistics** dashboard
+
+### 👤 User Data Isolation
+- **Separate Qdrant collections** per user: `user_{user_id}_documents`, `user_{user_id}_memories`
+- **Separate SQLite databases** per user: `lumiere_user_{user_id}.db`
+- **Session-based user IDs** (UUID per session)
+- **Zero cross-user data leakage**
+- **Multi-tenant architecture** ready for production
 
 ---
 
@@ -73,39 +92,50 @@ Lumiere transforms traditional Q&A systems into an **intelligent assistant that 
 └──────┬──────┘
        │
        ▼
-┌─────────────────────────────────────────┐
-│         LangGraph Workflow              │
-│  ┌──────────────────────────────────┐  │
-│  │  Intent → Retrieve/SQL/General   │  │
-│  │     ↓           ↓                 │  │
-│  │  Reason  →   Critic  →  Memory   │  │
-│  └──────────────────────────────────┘  │
-└───────────┬─────────────┬───────────────┘
+┌──────────────────────────────────────────────┐
+│         LangGraph Workflow (9 Nodes)         │
+│  ┌──────────────────────────────────────┐   │
+│  │  intent → [retrieve|sql_execute|     │   │
+│  │           general_reason]             │   │
+│  │     ↓           ↓           ↓         │   │
+│  │  reason    sql_reason  general_reason│   │
+│  │     ↓           ↓           ↓         │   │
+│  │  [visualize] → critic → memory_write │   │
+│  └──────────────────────────────────────┘   │
+└───────────┬─────────────┬────────────────────┘
             │             │
-    ┌───────▼─────┐   ┌──▼───────────┐
-    │   Qdrant    │   │   SQLite     │
-    │  (Vectors)  │   │  (Data)      │
-    └─────────────┘   └──────────────┘
+    ┌───────▼─────┐   ┌──▼────────────┐
+    │ Qdrant Cloud│   │  SQLite (per  │
+    │ (per user)  │   │    user)      │
+    │  - docs     │   │  - tables     │
+    │  - memories │   │  - sessions   │
+    └─────────────┘   └───────────────┘
+           │
+    ┌──────▼─────────┐
+    │   LangSmith    │
+    │  (Automatic    │
+    │   Tracing)     │
+    └────────────────┘
 ```
 
 ### Workflow Paths
 
 1. **RAG Query Path**
    ```
-   Intent (needs_rag) → Retrieve → Reason → Critic → Memory → END
+   intent (needs_rag) → retrieve → reason → critic → memory_write → END
    ```
 
 2. **SQL/Data Analysis Path**
    ```
-   Intent (needs_sql) → SQL Execute → SQL Reason → [Visualize] → Critic → Memory → END
+   intent (needs_sql) → sql_execute → sql_reason → [visualize] → critic → memory_write → END
    ```
 
 3. **General Chat Path**
    ```
-   Intent (general) → General Reason → Critic → Memory → END
+   intent → general_reason → critic → memory_write → END
    ```
 
-See [GRAPH_ARCHITECTURE.md](docs/GRAPH_ARCHITECTURE.md) for detailed workflow documentation.
+See [GRAPH_ARCHITECTURE.md](docs/GRAPH_ARCHITECTURE.md) for detailed workflow documentation or view `lumiere_graph.png` for visual representation.
 
 ---
 
@@ -144,30 +174,30 @@ See [GRAPH_ARCHITECTURE.md](docs/GRAPH_ARCHITECTURE.md) for detailed workflow do
    # OpenAI API
    OPENAI_API_KEY=your_openai_api_key_here
    
-   # Qdrant Configuration
-   QDRANT_URL=http://localhost:6333
-   QDRANT_API_KEY=  # Optional, for Qdrant Cloud
+   # Qdrant Configuration (Cloud or Local)
+   QDRANT_URL=https://your-cluster.qdrant.io  # Or http://localhost:6333
+   QDRANT_API_KEY=your_qdrant_api_key  # Required for Qdrant Cloud
    
-   # Langfuse (Optional - for observability)
-   LANGFUSE_PUBLIC_KEY=your_public_key
-   LANGFUSE_SECRET_KEY=your_secret_key
-   LANGFUSE_HOST=https://cloud.langfuse.com
+   # LangSmith Observability (Optional)
+   LANGCHAIN_TRACING_V2=true
+   LANGCHAIN_API_KEY=your_langsmith_api_key
+   LANGCHAIN_PROJECT=Lumiere
+   LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
    ```
 
-5. **Start Qdrant** (if running locally)
+5. **Start Qdrant** (if running locally, skip if using Qdrant Cloud)
    ```bash
    docker run -p 6333:6333 -p 6334:6334 \
        -v $(pwd)/qdrant_storage:/qdrant/storage:z \
        qdrant/qdrant
    ```
 
-6. **Initialize Qdrant collections**
-   ```bash
-   python -c "from rag.collections import init_all_collections; init_all_collections()"
-   ```
+6. **User collections auto-created**
+   - No manual initialization needed!
+   - Collections created automatically on first upload/query per user
+   - Format: `user_{user_id}_documents`, `user_{user_id}_memories`
 
-7. **Initialize semantic memory** (optional - seeds initial memories)
-   ```bash
+7. **Launch Lumiere**
    python scripts/init_semantic_memory.py
    ```
 

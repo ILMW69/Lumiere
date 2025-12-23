@@ -11,7 +11,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive README.md with full project documentation
 - CONTRIBUTING.md with contribution guidelines
 - QUICKSTART.md for rapid setup
-- CHANGELOG.md for tracking changes
+- This CHANGELOG.md for tracking changes
+- Graph visualization scripts (`show_graph.py`, `lumiere_graph.mmd`)
+
+### Changed
+- Migrated from Langfuse to LangSmith for observability
+- Updated all documentation to reflect current architecture
+
+## [0.3.0] - 2025-12-23
+
+### Added
+- **LangSmith Observability** 🔍
+  - Automatic tracing for all LangChain/LangGraph operations
+  - Zero manual instrumentation required
+  - Complete trace replay and debugging
+  - `observability/langsmith_client.py`: Auto-configuration module
+  - `LANGSMITH_GUIDE.md`: Complete setup and usage guide
+  
+- **Graph Visualization** 📊
+  - `lumiere_graph.mmd`: Mermaid diagram of 9-node architecture
+  - `lumiere_graph.png`: Visual graph representation
+  - `show_graph.py`: Standalone visualization script
+  - ASCII art workflow diagram
+  - Color-coded nodes by function type
+
+- **Complete User Isolation** 👤
+  - User-specific Qdrant collections: `user_{user_id}_documents`, `user_{user_id}_memories`
+  - User-specific SQLite databases: `lumiere_user_{user_id}.db`
+  - Session-based user ID (UUID per session)
+  - Zero cross-user data leakage
+  - `USER_ISOLATION.md`: Complete isolation architecture doc
+
+### Changed
+- **Observability Migration**: Langfuse → LangSmith
+  - Removed all manual Langfuse instrumentation from `app.py`
+  - Automatic tracing via `LANGCHAIN_TRACING_V2=true`
+  - Simpler setup, better integration with LangGraph
+  - Updated sidebar to show "LangSmith ✅ enabled"
+  
+- **Graph Architecture Updated** (9 nodes):
+  - Renamed nodes for clarity: intent, retrieve, reason, general_reason, sql_execute, sql_reason, visualize, critic, memory_write
+  - Improved routing logic with mode-specific paths
+  - Enhanced fallback mechanisms (SQL failure, no documents)
+  - Better retry logic in critic node (max 1 retry)
+  
+- **Documentation Overhaul**:
+  - `GRAPH_ARCHITECTURE.md`: Complete rewrite with 9-node details
+  - Added LangSmith observability section
+  - Updated all routing paths and logic
+  - Added configuration reference
+  - Enhanced future improvements section
+
+### Fixed
+- Graph invocation: Changed `graph.stream()` to `graph.invoke()` for complete final state
+- Syntax warnings: Fixed invalid escape sequences in f-strings (`\`` → `` ` ``)
+- State field consistency: Unified `user_query`, `final_answer` field names across nodes
+
+### Technical Details
+- LangSmith tracing via `LANGCHAIN_TRACING_V2` environment variable
+- All LLM calls use `gpt-4o-mini` for consistency
+- Embeddings use `text-embedding-3-small` (1536 dimensions)
+- CrossEncoder reranking: `ms-marco-MiniLM-L-6-v2`
+- Max retry count: 1 (critic can trigger one retry)
+- User collections auto-created on first use
 
 ## [0.2.0] - 2025-12-22
 
@@ -111,12 +173,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **v0.3.0** (Dec 23, 2025): LangSmith Observability + User Isolation + Graph Visualization
 - **v0.2.0** (Dec 22, 2025): Semantic Memory Integration
 - **v0.1.0** (Dec 15, 2025): Initial Release
 
 ---
 
 ## Upgrade Guide
+
+### From v0.2.0 to v0.3.0
+
+**New Dependencies:**
+No new packages required.
+
+**Environment Variables:**
+```env
+# Remove Langfuse (no longer used)
+# LANGFUSE_PUBLIC_KEY=...
+# LANGFUSE_SECRET_KEY=...
+
+# Add LangSmith
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=your_langsmith_key
+LANGCHAIN_PROJECT=Lumiere
+LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+```
+
+**Breaking Changes:**
+- Langfuse manual instrumentation removed
+- If you relied on Langfuse traces, migrate to LangSmith dashboard
+
+**Migration Steps:**
+
+1. **Update environment variables**
+   ```bash
+   # Edit .env file
+   nano .env
+   
+   # Remove LANGFUSE_* keys
+   # Add LANGCHAIN_* keys (see above)
+   ```
+
+2. **Restart application**
+   ```bash
+   streamlit run app.py
+   ```
+
+3. **Verify LangSmith tracing**
+   - Check sidebar shows "LangSmith ✅ enabled"
+   - Visit LangSmith dashboard at https://smith.langchain.com
+   - Run a query and verify trace appears
+
+4. **Optional: View graph visualization**
+   ```bash
+   python show_graph.py
+   ```
+
+**Benefits of Upgrade:**
+- ✅ Automatic tracing (no code changes)
+- ✅ Complete user data isolation
+- ✅ Better observability with LangSmith
+- ✅ Visual architecture diagram
+- ✅ Improved routing logic
 
 ### From v0.1.0 to v0.2.0
 
