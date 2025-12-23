@@ -475,44 +475,46 @@ def invoke_graph(user_message: str):
                 
                 # Stream graph execution
                 final_state = None
-                for state in st.session_state.graph.stream(initial_state):
-                    # Update status based on state
-                    if "intent" in state and state.get("intent"):
-                        intent = state.get("intent")
-                        st.write(f"📋 Intent detected: **{intent}**")
-                    
-                    if state.get("needs_rag"):
-                        st.write("📚 Retrieving documents...")
-                    
-                    if state.get("needs_sql"):
-                        st.write("🗄️ Executing SQL query...")
-                    
-                    if state.get("retrieved_docs"):
-                        doc_count = len(state.get("retrieved_docs", []))
-                        st.write(f"📄 Retrieved {doc_count} documents")
-                    
-                    if state.get("sql_results"):
-                        sql_success = state.get("sql_results", {}).get("success", False)
-                        if sql_success:
-                            row_count = state.get("sql_results", {}).get("row_count", 0)
-                            st.write(f"✅ SQL query returned {row_count} rows")
-                        else:
-                            st.write("❌ SQL query failed")
-                    
-                    if state.get("answer"):
-                        st.write("💭 Generating response...")
-                    
-                    if state.get("visualization_config"):
-                        st.write("📊 Creating visualization...")
-                    
-                    final_state = state
+                for output in st.session_state.graph.stream(initial_state):
+                    # Each output is a dict with node name as key
+                    for node_name, node_output in output.items():
+                        # Update status based on node output
+                        if isinstance(node_output, dict):
+                            if node_output.get("intent"):
+                                intent = node_output.get("intent")
+                                st.write(f"📋 Intent detected: **{intent}**")
+                            
+                            if node_output.get("needs_rag"):
+                                st.write("📚 Retrieving documents...")
+                            
+                            if node_output.get("needs_sql"):
+                                st.write("🗄️ Executing SQL query...")
+                            
+                            if node_output.get("retrieved_docs"):
+                                doc_count = len(node_output.get("retrieved_docs", []))
+                                st.write(f"📄 Retrieved {doc_count} documents")
+                            
+                            if node_output.get("sql_results"):
+                                sql_success = node_output.get("sql_results", {}).get("success", False)
+                                if sql_success:
+                                    row_count = node_output.get("sql_results", {}).get("row_count", 0)
+                                    st.write(f"✅ SQL query returned {row_count} rows")
+                                else:
+                                    st.write("❌ SQL query failed")
+                            
+                            if node_output.get("answer"):
+                                st.write("💭 Generating response...")
+                            
+                            if node_output.get("visualization_config"):
+                                st.write("📊 Creating visualization...")
+                            
+                            # Keep updating final_state with the latest node output
+                            final_state = node_output
                 
                 status.update(label="✅ Processing complete!", state="complete")
         else:
-            # Execute without workflow display
-            final_state = None
-            for state in st.session_state.graph.stream(initial_state):
-                final_state = state
+            # Execute without workflow display - use invoke for final state
+            final_state = st.session_state.graph.invoke(initial_state)
         
         # Extract answer and metadata
         answer = final_state.get("answer", "I couldn't generate a response.")
