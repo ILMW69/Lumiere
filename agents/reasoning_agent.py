@@ -1,5 +1,4 @@
 from memory.session_memory import get_session_memory
-from observability.langfuse_client import langfuse
 from langchain_openai import ChatOpenAI
 from config.settings import LLM_MODEL
 
@@ -63,16 +62,6 @@ def reasoning_agent(question: str, retrieved_docs: list[dict], session_id: str) 
     conversation_items = [m for m in memory_items if m["type"] == "conversation"]
     other_memory_items = [m for m in memory_items if m["type"] != "conversation"]
     
-    memory_read_span = langfuse.start_span(
-        name="memory.read",
-        input={
-            "session_id": session_id,
-            "memory_count": len(memory_items),
-            "conversation_count": len(conversation_items),
-            "memory_types": list({m["type"] for m in memory_items}) if memory_items else [],
-        },
-    )
-    
     # Format conversation history (last 10 items = 5 exchanges)
     if conversation_items:
         recent_conversation = conversation_items[-10:]  # Last 10 items (5 exchanges)
@@ -96,13 +85,6 @@ def reasoning_agent(question: str, retrieved_docs: list[dict], session_id: str) 
         context_blocks.append(f"{d['text']}\nSource: {source}")
 
     context = "\n\n".join(context_blocks)
-
-    memory_read_span.update(output={
-        "conversation_history_length": len(conversation_history),
-        "has_conversation": bool(conversation_items),
-    })
-    memory_read_span.end()
-    
     
     response = llm.invoke(
         REASONING_PROMPT.format(

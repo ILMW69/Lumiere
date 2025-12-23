@@ -1,7 +1,6 @@
 from langchain_openai import ChatOpenAI
 from config.settings import LLM_MODEL
 from memory.session_memory import get_session_memory
-from observability.langfuse_client import langfuse
 
 # Initialize ChatOpenAI client at module load
 llm = ChatOpenAI(
@@ -55,17 +54,6 @@ def general_reasoning_agent(question: str, session_id: str) -> str:
     conversation_items = [m for m in memory_items if m["type"] == "conversation"]
     other_memory_items = [m for m in memory_items if m["type"] != "conversation"]
     
-    memory_read_span = langfuse.start_span(
-        name="memory.read",
-        input={
-            "session_id": session_id,
-            "memory_count": len(memory_items),
-            "conversation_count": len(conversation_items),
-            "memory_types": list({m["type"] for m in memory_items}) if memory_items else [],
-            "reasoning_mode": "general",
-        },
-    )
-    
     # Format conversation history (last 10 items = 5 exchanges)
     if conversation_items:
         recent_conversation = conversation_items[-10:]  # Last 10 items (5 exchanges)
@@ -82,13 +70,6 @@ def general_reasoning_agent(question: str, session_id: str) -> str:
         session_memory = "\n".join(memory_lines)
     else:
         session_memory = "No relevant session memory."
-
-    memory_read_span.update(output={
-        "conversation_history_length": len(conversation_history),
-        "has_conversation": bool(conversation_items),
-    })
-    memory_read_span.end()
-    
     
     response = llm.invoke(
         GENERAL_REASONING_PROMPT.format(

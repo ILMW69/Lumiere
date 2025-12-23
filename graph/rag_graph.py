@@ -12,7 +12,6 @@ from graph.nodes import (
 )
 from memory.session_memory import append_session_memory
 from memory.semantic_memory import store_conversation_memory
-from observability.langfuse_client import langfuse
 
 def memory_write_node(state):
     """
@@ -30,15 +29,6 @@ def memory_write_node(state):
 
     # Store memories for all ACCEPT decisions (with or without explicit memory_signal)
     if decision == "ACCEPT" and session_id:
-        memory_write_span = langfuse.start_span(
-            name="memory.write",
-            input={
-                "session_id": session_id,
-                "user_id": user_id,
-                "memory_type": memory_signal.get("type") if memory_signal else "conversation",
-            },
-        )
-
         # Store in session memory (short-term) if there's an explicit memory_signal
         if memory_signal:
             append_session_memory(
@@ -86,8 +76,6 @@ def memory_write_node(state):
             print(f"⚠️  Failed to store semantic memory: {e}")
             import traceback
             traceback.print_exc()
-
-        memory_write_span.end()
     else:
         print(f"⏭️  Skipping memory storage - Decision: {decision}, Session ID: {session_id}")
 
