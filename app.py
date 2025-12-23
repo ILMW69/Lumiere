@@ -30,16 +30,21 @@ st.set_page_config(
 # ---------------------------
 # Initialize cookie manager only once per session
 if "cookies" not in st.session_state:
-    st.session_state.cookies = EncryptedCookieManager(
-        prefix="lumiere_app_",
-        password=os.environ.get("COOKIE_PASSWORD", "lumiere_secret_key_change_in_production_2024")
-    )
+    try:
+        st.session_state.cookies = EncryptedCookieManager(
+            prefix="lumiere_app_",
+            password=os.environ.get("COOKIE_PASSWORD", "lumiere_secret_key_change_in_production_2024")
+        )
+        st.session_state.cookies_enabled = True
+    except Exception as e:
+        print(f"Cookie manager initialization failed: {e}")
+        st.session_state.cookies = None
+        st.session_state.cookies_enabled = False
 
 cookies = st.session_state.cookies
 
-# Wait for cookies to be ready (required on first load)
-if not cookies.ready():
-    st.stop()
+# Only use cookies if they're available and ready
+cookies_ready = cookies is not None and cookies.ready() if st.session_state.get("cookies_enabled", False) else False
 
 # ---------------------------
 # User Session Tracking for Langfuse
@@ -77,25 +82,32 @@ def get_geo_data():
     }
 
 # ---------------------------
-# Persistent User Identity (Cookie-Based)
+# Persistent User Identity (Cookie-Based or Session-Based)
 # ---------------------------
-# Get or create persistent user_id from cookie
+# Get or create persistent user_id from cookie (if available) or use session-based ID
 if "user_id" not in st.session_state:
     cookies_need_save = False
     
-    if "persistent_user_id" not in cookies or not cookies.get("persistent_user_id"):
-        # First-time visitor: Create new permanent ID
-        new_user_id = str(uuid.uuid4())
-        cookies["persistent_user_id"] = new_user_id
-        cookies["first_visit"] = datetime.now().isoformat()
-        cookies["session_count"] = "1"
-        persistent_user_id = new_user_id
-        is_new_user = True
-        cookies_need_save = True
+    if cookies_ready:
+        # Cookies are available - use persistent ID
+        if "persistent_user_id" not in cookies or not cookies.get("persistent_user_id"):
+            # First-time visitor: Create new permanent ID
+            new_user_id = str(uuid.uuid4())
+            cookies["persistent_user_id"] = new_user_id
+            cookies["first_visit"] = datetime.now().isoformat()
+            cookies["session_count"] = "1"
+            persistent_user_id = new_user_id
+            is_new_user = True
+            cookies_need_save = True
+        else:
+            # Returning visitor: Use existing ID from cookie
+            persistent_user_id = cookies["persistent_user_id"]
+            is_new_user = False
     else:
-        # Returning visitor: Use existing ID from cookie
-        persistent_user_id = cookies["persistent_user_id"]
-        is_new_user = False
+        # Cookies not available - use session-based ID (temporary)
+        persistent_user_id = str(uuid.uuid4())
+        is_new_user = True
+        print("Warning: Cookies not available, using session-based user ID")
     
     # Store persistent user_id in session_state (this is what your app uses)
     st.session_state.user_id = persistent_user_id
@@ -116,8 +128,8 @@ if "session_id" not in st.session_state:
     st.session_state.session_start = datetime.now()
     st.session_state.session_start_iso = datetime.now().isoformat()
     
-    # Track session count for this user (only for returning users)
-    if not is_new_user:
+    # Track session count for this user (only for returning users with cookies)
+    if cookies_ready and not is_new_user:
         session_count = int(cookies.get("session_count", "0")) + 1
         cookies["session_count"] = str(session_count)
         st.session_state.cookies_need_save = True
@@ -794,7 +806,8 @@ with st.sidebar:
         st.markdown("### 📊 Session Stats")
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Session Count", int(cookies.get("session_count", "1")))
+            session_count_display = int(cookies.get("session_count", "1")) if cookies_ready else 1
+            st.metric("Session Count", session_count_display)
             st.metric("Duration", f"{session_duration_minutes} min")
         with col2:
             st.metric("Total Errors", st.session_state.error_tracking["total_errors"])
@@ -1166,7 +1179,7 @@ if user_input:
 # Save cookies at the end (after all UI is rendered)
 # ---------------------------
 # This prevents the save from blocking the chat interface display
-if st.session_state.get("cookies_need_save", False) and not st.session_state.get("cookies_saved", False):
+if cookies_ready and st.session_state.get("cookies_need_save", False) and not st.session_state.get("cookies_saved", False):
     cookies.save()
     st.session_state.cookies_need_save = False
     st.session_state.cookies_saved = True
