@@ -125,7 +125,7 @@ def render_sidebar():
             st.rerun()
         
         if st.session_state.user_id:
-            st.info(f"**User:** {st.session_state.user_name}\\n\\n**ID:** \`{st.session_state.user_id[:8]}...\`")
+            st.info(f"**User:** {st.session_state.user_name}\n\n**ID:** `{st.session_state.user_id[:8]}...`")
         else:
             st.warning("⚠️ Please enter your name to start using Lumiere.")
             st.stop()
@@ -320,7 +320,7 @@ def render_sidebar():
         # ===== FOOTER =====
         observability_status = "✅ enabled" if langfuse else "⚠️ disabled"
         st.caption(f"🔍 **Observability:** Langfuse {observability_status}")
-        st.caption(f"🆔 **Session:** \`{st.session_state.session_id[:8]}...\`")
+        st.caption(f"🆔 **Session:** `{st.session_state.session_id[:8]}...`")
 
 # ============================================
 # VISUALIZATION RENDERING
