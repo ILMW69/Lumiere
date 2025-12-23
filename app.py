@@ -27,12 +27,34 @@ st.set_page_config(
 # ---------------------------
 # User Session Tracking for Langfuse
 # ---------------------------
+from datetime import datetime
+import platform
+
 # Generate or retrieve unique user ID for this session
 if "user_id" not in st.session_state:
     st.session_state.user_id = str(uuid.uuid4())
+    st.session_state.session_start = datetime.now().isoformat()
+    
+    # Capture user metadata
+    st.session_state.user_metadata = {
+        "first_visit": datetime.now().isoformat(),
+        "user_agent": st.context.headers.get("User-Agent", "Unknown") if hasattr(st, 'context') and hasattr(st.context, 'headers') else "Unknown",
+        "platform": platform.system(),
+        "session_count": 1
+    }
+else:
+    # Increment session count for returning users
+    if "user_metadata" in st.session_state:
+        st.session_state.user_metadata["session_count"] = st.session_state.user_metadata.get("session_count", 0) + 1
+        st.session_state.user_metadata["last_visit"] = datetime.now().isoformat()
 
-# Store user_id in environment for Langfuse tracking
+# Store user_id and metadata in environment for Langfuse tracking
 os.environ["LANGFUSE_USER_ID"] = st.session_state.user_id
+
+# Store metadata as JSON string for Langfuse
+if "user_metadata" in st.session_state:
+    import json
+    os.environ["LANGFUSE_USER_METADATA"] = json.dumps(st.session_state.user_metadata)
 
 # ---------------------------
 # Apple-like Custom CSS
@@ -610,6 +632,31 @@ with st.sidebar:
             
     except Exception as e:
         st.caption(f"Unable to load: {str(e)}")
+    
+    st.divider()
+    
+    # User Session Info (for monitoring/debugging)
+    with st.expander("🔍 Session Info", expanded=False):
+        st.caption("**User ID:**")
+        st.code(st.session_state.user_id, language=None)
+        
+        if "user_metadata" in st.session_state:
+            metadata = st.session_state.user_metadata
+            st.caption("**Session Count:**")
+            st.text(metadata.get("session_count", 1))
+            
+            st.caption("**First Visit:**")
+            st.text(metadata.get("first_visit", "N/A"))
+            
+            if "last_visit" in metadata:
+                st.caption("**Last Visit:**")
+                st.text(metadata["last_visit"])
+            
+            st.caption("**Platform:**")
+            st.text(metadata.get("platform", "Unknown"))
+            
+            st.caption("**User Agent:**")
+            st.text(metadata.get("user_agent", "Unknown")[:50] + "...")
 
 # ---------------------------
 # Display chat history
@@ -690,6 +737,16 @@ if user_input:
                 span.set_attribute("turn", turn)
                 span.set_attribute("user_query", user_query)
                 span.set_attribute("tags", "streamlit,streaming,chat")
+                
+                # Add user metadata if available
+                if "user_metadata" in st.session_state:
+                    metadata = st.session_state.user_metadata
+                    span.set_attribute("user.first_visit", metadata.get("first_visit", ""))
+                    span.set_attribute("user.session_count", metadata.get("session_count", 0))
+                    span.set_attribute("user.user_agent", metadata.get("user_agent", "Unknown"))
+                    span.set_attribute("user.platform", metadata.get("platform", "Unknown"))
+                    if "last_visit" in metadata:
+                        span.set_attribute("user.last_visit", metadata["last_visit"])
             
             # Stream through the graph
             final_state = None
