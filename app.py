@@ -20,7 +20,7 @@ from rag.pdf_processor import list_uploaded_documents, process_and_store_pdf
 from database.csv_processor import list_all_tables, process_and_store_csv, sanitize_table_name
 
 # Observability
-from observability.langfuse_client import langfuse
+from observability.langfuse_client import langfuse, langfuse_context
 
 # Page configuration
 st.set_page_config(
@@ -427,11 +427,12 @@ def render_visualization(viz_config: dict, sql_results: dict):
 def invoke_graph(user_message: str):
     """Invoke the LangGraph workflow with proper state management"""
     
-    # Create Langfuse trace (optional - will continue if tracing fails)
-    trace = None
+    # Create Langfuse generation/trace
+    generation = None
     if langfuse:
         try:
-            trace = langfuse.trace(
+            # Use generation() which is the correct method in Langfuse 2.0+
+            generation = langfuse.generation(
                 name="lumiere_chat",
                 user_id=st.session_state.user_id,
                 session_id=st.session_state.session_id,
@@ -443,7 +444,10 @@ def invoke_graph(user_message: str):
                 }
             )
         except Exception as e:
-            print(f"Warning: Failed to create Langfuse trace: {e}")
+            # Silently continue if Langfuse tracing fails
+            generation = None
+    else:
+        generation = None
     
     try:
         # Build initial state
@@ -563,10 +567,10 @@ def invoke_graph(user_message: str):
             except Exception as e:
                 print(f"Warning: Failed to store semantic memory: {e}")
         
-        # Update trace
-        if trace:
+        # Update generation with output
+        if generation:
             try:
-                trace.update(
+                generation.update(
                     output={
                         "answer": answer,
                         "has_sql": bool(sql_results),
@@ -575,7 +579,14 @@ def invoke_graph(user_message: str):
                     }
                 )
             except Exception as e:
-                print(f"Warning: Failed to update Langfuse trace: {e}")
+                pass  # Silently ignore Langfuse errors
+        
+        # Flush Langfuse events
+        if langfuse:
+            try:
+                langfuse.flush()
+            except Exception:
+                pass
         
         return {
             "answer": answer,
@@ -584,14 +595,21 @@ def invoke_graph(user_message: str):
         }
     
     except Exception as e:
-        if trace:
+        if generation:
             try:
-                trace.update(
+                generation.update(
                     output={"error": str(e)},
                     level="ERROR"
                 )
-            except Exception as trace_error:
-                print(f"Warning: Failed to update Langfuse trace: {trace_error}")
+            except Exception:
+                pass  # Silently ignore Langfuse errors
+        
+        # Flush Langfuse events
+        if langfuse:
+            try:
+                langfuse.flush()
+            except Exception:
+                pass
         
         st.error(f"❌ Error processing request: {e}")
         return {
@@ -600,11 +618,18 @@ def invoke_graph(user_message: str):
             "visualization_config": None
         }
     finally:
-        if trace:
+        if generation:
             try:
-                trace.end()
-            except Exception as e:
-                print(f"Warning: Failed to end Langfuse trace: {e}")
+                generation.end()
+            except Exception:
+                pass  # Silently ignore Langfuse errors
+        
+        # Final flush
+        if langfuse:
+            try:
+                langfuse.flush()
+            except Exception:
+                pass
 
 # ============================================
 # MAIN CHAT INTERFACE
