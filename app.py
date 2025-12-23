@@ -318,7 +318,8 @@ def render_sidebar():
         st.divider()
         
         # ===== FOOTER =====
-        st.caption("�� **Observability:** Langfuse enabled")
+        observability_status = "✅ enabled" if langfuse else "⚠️ disabled"
+        st.caption(f"🔍 **Observability:** Langfuse {observability_status}")
         st.caption(f"🆔 **Session:** \`{st.session_state.session_id[:8]}...\`")
 
 # ============================================
@@ -426,18 +427,23 @@ def render_visualization(viz_config: dict, sql_results: dict):
 def invoke_graph(user_message: str):
     """Invoke the LangGraph workflow with proper state management"""
     
-    # Create Langfuse trace
-    trace = langfuse.trace(
-        name="lumiere_chat",
-        user_id=st.session_state.user_id,
-        session_id=st.session_state.session_id,
-        input={"message": user_message, "mode": st.session_state.lumiere_mode},
-        metadata={
-            "lumiere_mode": st.session_state.lumiere_mode,
-            "message_count": len(st.session_state.messages),
-            "timestamp": datetime.now().isoformat()
-        }
-    )
+    # Create Langfuse trace (optional - will continue if tracing fails)
+    trace = None
+    if langfuse:
+        try:
+            trace = langfuse.trace(
+                name="lumiere_chat",
+                user_id=st.session_state.user_id,
+                session_id=st.session_state.session_id,
+                input={"message": user_message, "mode": st.session_state.lumiere_mode},
+                metadata={
+                    "lumiere_mode": st.session_state.lumiere_mode,
+                    "message_count": len(st.session_state.messages),
+                    "timestamp": datetime.now().isoformat()
+                }
+            )
+        except Exception as e:
+            print(f"Warning: Failed to create Langfuse trace: {e}")
     
     try:
         # Build initial state
@@ -556,14 +562,18 @@ def invoke_graph(user_message: str):
                 print(f"Warning: Failed to store semantic memory: {e}")
         
         # Update trace
-        trace.update(
-            output={
-                "answer": answer,
-                "has_sql": bool(sql_results),
-                "has_visualization": bool(visualization_config),
-                "memory_signal": memory_signal
-            }
-        )
+        if trace:
+            try:
+                trace.update(
+                    output={
+                        "answer": answer,
+                        "has_sql": bool(sql_results),
+                        "has_visualization": bool(visualization_config),
+                        "memory_signal": memory_signal
+                    }
+                )
+            except Exception as e:
+                print(f"Warning: Failed to update Langfuse trace: {e}")
         
         return {
             "answer": answer,
@@ -572,10 +582,15 @@ def invoke_graph(user_message: str):
         }
     
     except Exception as e:
-        trace.update(
-            output={"error": str(e)},
-            level="ERROR"
-        )
+        if trace:
+            try:
+                trace.update(
+                    output={"error": str(e)},
+                    level="ERROR"
+                )
+            except Exception as trace_error:
+                print(f"Warning: Failed to update Langfuse trace: {trace_error}")
+        
         st.error(f"❌ Error processing request: {e}")
         return {
             "answer": f"I encountered an error: {str(e)}",
@@ -583,7 +598,11 @@ def invoke_graph(user_message: str):
             "visualization_config": None
         }
     finally:
-        trace.end()
+        if trace:
+            try:
+                trace.end()
+            except Exception as e:
+                print(f"Warning: Failed to end Langfuse trace: {e}")
 
 # ============================================
 # MAIN CHAT INTERFACE
