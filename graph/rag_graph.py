@@ -1,4 +1,5 @@
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
 from graph.state import AgentState
 from graph.nodes import (
     intent_node,
@@ -186,4 +187,6 @@ def build_graph():
 
     graph.add_edge("memory_write", END)
 
-    return graph.compile()
+    # Add checkpointer to enable thread tracking in LangSmith
+    checkpointer = MemorySaver()
+    return graph.compile(checkpointer=checkpointer)
