@@ -5,8 +5,7 @@ from memory.semantic_memory import retrieve_memories, format_memories_for_contex
 
 # Initialize ChatOpenAI client at module load
 llm = ChatOpenAI(
-    model_name=LLM_MODEL,
-    temperature=0,
+    model="gpt-5.2",
 )
 
 INTENT_PROMPT = """

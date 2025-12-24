@@ -78,12 +78,11 @@ Database Schema:
 """ + schema
 
     response = client.chat.completions.create(
-        model=LLM_MODEL,
+        model="gpt-5.1-codex",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_query}
         ],
-        temperature=0.1,
         response_format={"type": "json_object"}
     )
     

@@ -5,7 +5,6 @@ from memory.session_memory import get_session_memory
 # Initialize ChatOpenAI client at module load
 llm = ChatOpenAI(
     model=LLM_MODEL,
-    temperature=0,
 )
 
 QUERY_REFORMULATION_PROMPT = """

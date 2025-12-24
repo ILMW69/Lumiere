@@ -5,7 +5,6 @@ from config.settings import LLM_MODEL
 # Initialize ChatOpenAI client at module load
 llm = ChatOpenAI(
     model=LLM_MODEL,
-    temperature=0,
 )
 
 REASONING_PROMPT = """

@@ -7,7 +7,6 @@ from config.settings import LLM_MODEL
 # Initialize ChatOpenAI client at module load
 llm = ChatOpenAI(
     model_name=LLM_MODEL,
-    temperature=0.3,
 )
 
 SQL_REASONING_PROMPT = """You are a data analysis assistant. Your job is to interpret SQL query results and provide clear, natural language answers.

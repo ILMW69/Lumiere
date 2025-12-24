@@ -16,7 +16,7 @@ def get_env(key: str, default=None):
 
 #OpenAI
 OPENAI_API_KEY = get_env("OPENAI_API_KEY")
-LLM_MODEL = "gpt-4o-mini"
+LLM_MODEL = "gpt-5-mini"
 EMBEDDING_MODEL = "text-embedding-3-small"
 
 # Qdrant

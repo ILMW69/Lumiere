@@ -4,8 +4,7 @@ from config.settings import LLM_MODEL
 
 # Initialize ChatOpenAI client at module load
 llm = ChatOpenAI(
-    model_name=LLM_MODEL,
-    temperature=0,
+    model=LLM_MODEL,
 )
 
 CRITIC_PROMPT = """

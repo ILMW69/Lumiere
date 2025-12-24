@@ -83,7 +83,7 @@ def visualization_agent(state: dict) -> dict:
             }
     
     # Use LLM to determine best visualization
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    llm = ChatOpenAI(model="gpt-4o-mini")
     
     system_prompt = """You are a data visualization expert. Analyze the SQL query results and determine the best chart type.
 
